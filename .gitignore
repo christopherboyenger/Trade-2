@@ -1,0 +1,3 @@
+
+# Vendored Ollama/runtime binaries (install separately, fetched by Tauri sidecar)
+openjarvis/desktop/src-tauri/binaries/
