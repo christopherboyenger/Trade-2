@@ -1017,7 +1017,7 @@ async function fetchKalshiOrderbook(marketId: string): Promise<OrderbookData | n
 /**
  * Calculate average fill price by walking through orderbook
  */
-function calculateFillFromOrderbook(
+export function calculateFillFromOrderbook(
   orders: [number, number][],  // [price, size] sorted appropriately
   targetSize: number,
   side: 'buy' | 'sell'
