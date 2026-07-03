@@ -52,6 +52,7 @@ describe('challenge risk gate', () => {
     process.env.CLODDS_STATE_DIR = tempState.dir;
     const dbMod = await import('../../src/db/index.js');
     db = dbMod.createDatabase();
+    await db.getVersion(); // wait for sql.js WASM init
     ({ createPaperBroker } = await import('../../src/trading/challenge/paper-broker.js'));
     ({ createChallengeRiskGate } = await import('../../src/trading/challenge/risk-gate.js'));
   });

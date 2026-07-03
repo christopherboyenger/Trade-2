@@ -23,6 +23,7 @@ describe('challenge promotion gates', () => {
     process.env.CLODDS_STATE_DIR = tempState.dir;
     const dbMod = await import('../../src/db/index.js');
     db = dbMod.createDatabase();
+    await db.getVersion(); // wait for sql.js WASM init
     ({ createChallengePersistence } = await import('../../src/trading/challenge/persistence.js'));
     ({ evaluatePromotionGates, maxDrawdownPct } = await import('../../src/trading/challenge/promotion.js'));
   });

@@ -69,6 +69,7 @@ describe('challenge end-to-end (scripted price path)', () => {
     process.env.CLODDS_STATE_DIR = tempState.dir;
     const dbMod = await import('../../src/db/index.js');
     db = dbMod.createDatabase();
+    await db.getVersion(); // wait for sql.js WASM init
     ({ createChallengeManager } = await import('../../src/trading/challenge/index.js'));
   });
 
