@@ -38,7 +38,7 @@ async function execute(args: string): Promise<string> {
         const s = manager.status();
         const lines = [
           `🎯 **Challenge status: ${s.status}**${s.statusReason ? ` (${s.statusReason})` : ''}`,
-          `Equity: ${money(s.equity)} / goal $10,000 (${s.progressPct.toFixed(1)}%)`,
+          `Equity: ${money(s.equity)} / goal ${money(s.goal)} (${s.progressPct.toFixed(1)}%)`,
           `Peak: ${money(s.peakEquity)} | drawdown ${s.drawdownPct.toFixed(1)}%`,
           ``,
           `**Crypto sleeve**: ${money(s.sleeves.crypto.equity)} (balance ${money(s.sleeves.crypto.balance)}, day ${money(s.sleeves.crypto.dailyRealizedPnL)}, ${s.sleeves.crypto.openPositions} open)`,

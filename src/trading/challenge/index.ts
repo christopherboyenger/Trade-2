@@ -23,7 +23,7 @@ import { evaluatePromotionGates } from './promotion.js';
 import { createChallengeCryptoStrategy } from './strategies/crypto-momentum.js';
 import { createChallengePredictionStrategy, type PredictionFeedLike } from './strategies/prediction-value.js';
 import {
-  DEFAULT_CHALLENGE_CONFIG,
+  resolveChallengeConfig,
   type ChallengeConfig,
   type ChallengeStatusView,
   type PromotionReport,
@@ -63,14 +63,7 @@ export function getChallengeManager(): ChallengeManager | null {
 const STALE_ALERT_MS = 5 * 60 * 1000;
 
 export function createChallengeManager(deps: ChallengeManagerDeps): ChallengeManager {
-  const cfg: ChallengeConfig = {
-    ...DEFAULT_CHALLENGE_CONFIG,
-    ...deps.config,
-    sleeves: {
-      crypto: { ...DEFAULT_CHALLENGE_CONFIG.sleeves.crypto, ...deps.config?.sleeves?.crypto },
-      prediction: { ...DEFAULT_CHALLENGE_CONFIG.sleeves.prediction, ...deps.config?.sleeves?.prediction },
-    },
-  };
+  const cfg: ChallengeConfig = resolveChallengeConfig(deps.config);
   const timersEnabled = deps.timersEnabled ?? true;
   const notify: NotifyFn = deps.notify ?? (async (text) => logger.info({ text }, 'challenge notification'));
 
@@ -198,8 +191,8 @@ export function createChallengeManager(deps: ChallengeManagerDeps): ChallengeMan
       bankroll: cfg.bankroll,
       peakEquity: state.peakEquity,
       drawdownPct,
-      goal: 10_000,
-      progressPct: (equity / 10_000) * 100,
+      goal: cfg.goal,
+      progressPct: (equity / cfg.goal) * 100,
       sleeves: {
         crypto: broker.getSleeveState('crypto'),
         prediction: broker.getSleeveState('prediction'),

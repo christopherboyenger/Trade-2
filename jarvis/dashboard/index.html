@@ -108,6 +108,17 @@
   <p class="sub">Live mirror of the paper-trading challenge: this page pulls real market data in your browser, replays the bot's production rules (Donchian 20/10 breakout · EMA 20/50 filter · ATR-sized stops · 1% risk per trade) over the last ~20 days of 1-hour candles, and refreshes automatically. The authoritative bot runs in the Clodds gateway; this console shows what its rules are doing in the market right now.</p>
   <div class="banner" id="banner"><span class="dotlive"></span><span id="bannerText">Connecting to market data…</span><span style="margin-left:auto" class="num" id="countdown"></span></div>
 
+  <div class="banner" style="gap:14px">
+    <label style="display:flex; align-items:center; gap:6px">Paper money $
+      <input type="number" id="setBankroll" min="100" step="100" style="width:110px; padding:5px 8px; border-radius:6px; border:1px solid var(--panel-edge); background:var(--surface); color:var(--ink)" class="num">
+    </label>
+    <label style="display:flex; align-items:center; gap:6px">Goal $
+      <input type="number" id="setGoal" min="100" step="500" style="width:110px; padding:5px 8px; border-radius:6px; border:1px solid var(--panel-edge); background:var(--surface); color:var(--ink)" class="num">
+    </label>
+    <button id="setApply" style="padding:5px 14px; border-radius:6px; border:1px solid var(--panel-edge); background:var(--panel); color:var(--ink); cursor:pointer; font-weight:600">Apply</button>
+    <span id="setNote" style="color:var(--ink-3); font-size:11.5px">Sleeves and position caps scale with the bankroll; risk stays 1% per trade. Saved in your browser.</span>
+  </div>
+
   <div class="tiles" id="tiles"></div>
 
   <h2>Price &amp; signals — 1h candles, production parameters</h2>
@@ -130,7 +141,7 @@
   <div class="grid2">
     <div class="card">
       <h3>Equity</h3>
-      <div class="meta">$1,000 start · crypto sleeve floats · prediction sleeve idle at $500 in this mirror</div>
+      <div class="meta"><span id="equityMeta">$1,000 start · crypto sleeve floats · prediction sleeve idle in this mirror</span></div>
       <div class="chart" id="equityChart"></div>
     </div>
     <div class="card">
@@ -159,9 +170,9 @@
   <div class="grid2" style="margin-top:14px">
     <div class="card"><h3>Analyst read</h3><div class="note" id="analysis"></div></div>
     <div class="card">
-      <h3>Prediction sleeve — $500, idle in this mirror</h3>
+      <h3>Prediction sleeve — <span id="predSleeveAmt">$500</span>, idle in this mirror</h3>
       <div class="note">
-        <p style="margin:0 0 6px">Polymarket/Kalshi scanning runs in the Clodds gateway (cross-platform value/arb, executable spreads ≥4%, −30% stops, +50% take-profit). Browsers can't reach those APIs directly, so this mirror holds the sleeve at $500 — <b>no data, no trades</b>, same rule the bot follows.</p>
+        <p style="margin:0 0 6px">Polymarket/Kalshi scanning runs in the Clodds gateway (cross-platform value/arb, executable spreads ≥4%, −30% stops, +50% take-profit). Browsers can't reach those APIs directly, so this mirror holds the sleeve at its allocation — <b>no data, no trades</b>, same rule the bot follows.</p>
         <p style="margin:0">Connect a running gateway below to replace this mirror with the bot's real state.</p>
       </div>
     </div>
@@ -192,11 +203,25 @@ const PARAMS = {
   symbols: ['BTC', 'ETH'],
   emaFast: 20, emaSlow: 50, donchEntry: 20, donchExit: 10, atrPeriod: 14,
   atrStopMult: 2, atrTrailMult: 2.5, atrTrailActMult: 1,
-  riskPct: 1, maxPosUsd: 100, maxPositions: 2, sleeveUsd: 500,
+  riskPct: 1, maxPositions: 2,
   feeBps: 10, slipBps: 5,
+  // Derived from SETTINGS at replay time (mirrors resolveChallengeConfig):
+  // sleeveUsd = bankroll/2, maxPosUsd = 20% of sleeve
+  get sleeveUsd() { return SETTINGS.bankroll / 2; },
+  get maxPosUsd() { return SETTINGS.bankroll / 2 * 0.2; },
 };
 const REFRESH_S = 60;
 const $ = (id) => document.getElementById(id);
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch { /* storage unavailable */ } },
+};
+// User-adjustable challenge settings (persisted in this browser only)
+const SETTINGS = {
+  bankroll: Math.max(100, Number(store.get('challengeBankroll')) || 1000),
+  goal: 0, // resolved below: explicit value or 10x bankroll
+};
+SETTINGS.goal = Math.max(100, Number(store.get('challengeGoal')) || SETTINGS.bankroll * 10);
 const fmt$ = (n, dp=2) => (n<0?'−$':'$') + Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:dp, maximumFractionDigits:dp});
 const fmtP = (n, dp=2) => (n>=0?'+':'−') + Math.abs(n).toFixed(dp) + '%';
 const fmtN = (n, dp=2) => n.toLocaleString('en-US',{minimumFractionDigits:dp, maximumFractionDigits:dp});
@@ -469,7 +494,8 @@ function chart(el, bars, opts) {
 function equityChart(el, pts) {
   const W=520,H=200,padL=56,padR=10,padT=10,padB=22;
   const vals=pts.map(p=>p.total);
-  let lo=Math.min(...vals,1000), hi=Math.max(...vals,1000);
+  const start = SETTINGS.bankroll;
+  let lo=Math.min(...vals,start), hi=Math.max(...vals,start);
   const span=Math.max(hi-lo,2); lo-=span*0.15; hi+=span*0.15;
   const X=i=>padL+(i/(pts.length-1))*(W-padL-padR), Y=v=>padT+(1-(v-lo)/(hi-lo))*(H-padT-padB);
   let g='';
@@ -478,7 +504,7 @@ function equityChart(el, pts) {
     g+=`<text x="${padL-6}" y="${y+3.5}" text-anchor="end" font-size="9.5" fill="var(--ink-3)" font-family="ui-monospace,monospace">${fmtN(v,0)}</text>`; }
   for(let t=0;t<4;t++){ const i=Math.round((pts.length-1)*t/3);
     g+=`<text x="${X(i)}" y="${H-6}" text-anchor="middle" font-size="9.5" fill="var(--ink-3)" font-family="ui-monospace,monospace">${new Date(pts[i].ts).toISOString().slice(5,10)}</text>`; }
-  g+=`<line x1="${padL}" x2="${W-padR}" y1="${Y(1000)}" y2="${Y(1000)}" stroke="var(--level)" stroke-dasharray="4 4"/><text x="${W-padR}" y="${Y(1000)-4}" text-anchor="end" font-size="9" fill="var(--ink-3)">start $1,000</text>`;
+  g+=`<line x1="${padL}" x2="${W-padR}" y1="${Y(start)}" y2="${Y(start)}" stroke="var(--level)" stroke-dasharray="4 4"/><text x="${W-padR}" y="${Y(start)-4}" text-anchor="end" font-size="9" fill="var(--ink-3)">start ${fmt$(start,0)}</text>`;
   const line=vals.map((v,i)=>(i?'L':'M')+X(i).toFixed(1)+' '+Y(v).toFixed(1)).join('');
   g+=`<path d="${line} L ${X(pts.length-1)} ${Y(lo)} L ${X(0)} ${Y(lo)} Z" fill="var(--btc)" opacity="0.09"/>`;
   g+=`<path d="${line}" fill="none" stroke="var(--btc)" stroke-width="2" stroke-linejoin="round"/>`;
@@ -499,7 +525,8 @@ function equityChart(el, pts) {
 function render(data) {
   const { series, tickers } = data;
   const sim = replay(series);
-  const eq = sim.equitySeries.length ? sim.equitySeries[sim.equitySeries.length-1].total : 1000;
+  const bankroll = SETTINGS.bankroll, goal = SETTINGS.goal;
+  const eq = sim.equitySeries.length ? sim.equitySeries[sim.equitySeries.length-1].total : bankroll;
   const realized = sim.fills.filter(f=>f.pnl!=null).reduce((a,f)=>a+f.pnl,0);
   const unreal = sim.open.reduce((a,p)=>a+p.unrealized,0);
   const wins = sim.fills.filter(f=>f.pnl!=null && f.pnl>0).length;
@@ -513,8 +540,8 @@ function render(data) {
   $('asOf').textContent = 'data as of ' + new Date().toISOString().slice(0,16).replace('T',' ') + ' UTC';
 
   const tiles = [
-    ['Equity', fmt$(eq), (eq>=1000?'up':'dn'), fmtP((eq-1000)/10, 2) + ' vs start'],
-    ['Goal progress', (eq/10000*100).toFixed(1)+'%', '', 'of $10,000'],
+    ['Equity', fmt$(eq), (eq>=bankroll?'up':'dn'), fmtP((eq-bankroll)/bankroll*100, 2) + ' vs start'],
+    ['Goal progress', (eq/goal*100).toFixed(1)+'%', '', 'of ' + fmt$(goal, 0)],
     ['Unrealized P&L', fmt$(unreal), (unreal>=0?'up':'dn'), sim.open.length + ' open positions'],
     ['Realized P&L', fmt$(realized), (realized>=0?'up':'dn'), `${wins}W / ${losses}L closed`],
     ['Max drawdown', maxdd.toFixed(2)+'%', (maxdd>10?'wa':''), 'kill switch at 15%'],
@@ -550,7 +577,9 @@ function render(data) {
     });
   }
 
-  equityChart($('equityChart'), sim.equitySeries.length ? sim.equitySeries : [{ts:Date.now(),total:1000}]);
+  equityChart($('equityChart'), sim.equitySeries.length ? sim.equitySeries : [{ts:Date.now(),total:bankroll}]);
+  $('equityMeta').textContent = `${fmt$(bankroll,0)} start · crypto sleeve floats · prediction sleeve idle at ${fmt$(PARAMS.sleeveUsd,0)} in this mirror`;
+  $('predSleeveAmt').textContent = fmt$(PARAMS.sleeveUsd, 0);
 
   const grossW = sim.fills.filter(f=>f.pnl>0).reduce((a,f)=>a+f.pnl,0);
   const grossL = Math.abs(sim.fills.filter(f=>f.pnl<0).reduce((a,f)=>a+f.pnl,0));
@@ -592,7 +621,7 @@ function render(data) {
   })();
   $('limits').innerHTML = [
     ['Risk per trade', '1% of sleeve — sizing applied to every entry', ''],
-    ['Daily loss cap $50', 'worst day in window: ' + fmt$(worstDay), worstDay<=-50?'wa':'up'],
+    ['Daily loss cap ' + fmt$(bankroll*0.05, 0), 'worst day in window: ' + fmt$(worstDay), worstDay<=-bankroll*0.05?'wa':'up'],
     ['Max drawdown (kill 15%)', maxdd.toFixed(2)+'% — headroom '+(15-maxdd).toFixed(1)+'pts', maxdd>=15?'wa':'up'],
     ['Crypto positions', sim.open.length + ' of ' + PARAMS.maxPositions + (sim.open.length>=PARAMS.maxPositions?' — at cap':''), sim.open.length>=PARAMS.maxPositions?'wa':''],
     ['Stop on every position', 'enforced broker-side each bar', 'up'],
@@ -652,10 +681,6 @@ async function tryGateway(url) {
   if (!body?.data) throw new Error('unexpected response');
   return body.data;
 }
-const store = {
-  get(k) { try { return localStorage.getItem(k); } catch { return null; } },
-  set(k, v) { try { localStorage.setItem(k, v); } catch { /* storage unavailable */ } },
-};
 $('gwBtn').addEventListener('click', async () => {
   const url = $('gwUrl').value.trim();
   if (!url) return;
@@ -671,10 +696,28 @@ $('gwBtn').addEventListener('click', async () => {
 const savedGw = store.get('challengeGatewayUrl');
 if (savedGw) $('gwUrl').value = savedGw;
 
+// Settings controls
+let lastData = null;
+$('setBankroll').value = SETTINGS.bankroll;
+$('setGoal').value = SETTINGS.goal;
+$('setApply').addEventListener('click', () => {
+  const bankroll = Math.max(100, Number($('setBankroll').value) || SETTINGS.bankroll);
+  const goal = Math.max(bankroll, Number($('setGoal').value) || bankroll * 10);
+  SETTINGS.bankroll = bankroll;
+  SETTINGS.goal = goal;
+  $('setBankroll').value = bankroll;
+  $('setGoal').value = goal;
+  store.set('challengeBankroll', String(bankroll));
+  store.set('challengeGoal', String(goal));
+  $('setNote').textContent = `Applied: ${fmt$(bankroll,0)} bankroll (${fmt$(bankroll/2,0)} per sleeve, ${fmt$(bankroll/2*0.2,0)} position cap) chasing ${fmt$(goal,0)}.`;
+  if (lastData) render(lastData);
+});
+
 let nextRefresh = Date.now();
 async function refresh() {
   try {
     const data = await fetchAll();
+    lastData = data;
     render(data);
     const barsN = data.series.BTC.length;
     $('bannerText').textContent = `LIVE — ${data.provider} public data (${barsN} × 1h bars) · browser replay of production rules · auto-refresh every ${REFRESH_S}s`;

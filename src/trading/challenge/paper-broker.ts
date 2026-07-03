@@ -21,7 +21,7 @@ import type { Signal } from '../bots/index.js';
 import type { Trade } from '../logger.js';
 import { createChallengePersistence, type ChallengePersistence } from './persistence.js';
 import {
-  DEFAULT_CHALLENGE_CONFIG,
+  resolveChallengeConfig,
   type ChallengeConfig,
   type ChallengeFill,
   type ChallengePosition,
@@ -82,14 +82,7 @@ interface FillComputation {
 
 export function createPaperBroker(deps: PaperBrokerDeps): PaperBroker {
   const emitter = new EventEmitter() as PaperBroker;
-  const cfg: ChallengeConfig = {
-    ...DEFAULT_CHALLENGE_CONFIG,
-    ...deps.config,
-    sleeves: {
-      crypto: { ...DEFAULT_CHALLENGE_CONFIG.sleeves.crypto, ...deps.config?.sleeves?.crypto },
-      prediction: { ...DEFAULT_CHALLENGE_CONFIG.sleeves.prediction, ...deps.config?.sleeves?.prediction },
-    },
-  };
+  const cfg: ChallengeConfig = resolveChallengeConfig(deps.config);
   const now = deps.now ?? (() => Date.now());
   const persistence: ChallengePersistence = createChallengePersistence(deps.db);
 

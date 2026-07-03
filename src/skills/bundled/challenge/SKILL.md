@@ -13,6 +13,9 @@ touched: when every promotion gate is green the system only flags
 eligibility for review.
 
 Enable it in config: `trading.challenge.enabled = true` (no API keys needed).
+Optional: `trading.challenge.bankroll` (default 1000 — sleeves and position
+caps scale with it) and `trading.challenge.goal` (default 10x bankroll).
+Changing the bankroll of an existing run takes effect after `/challenge reset`.
 
 ## Commands
 

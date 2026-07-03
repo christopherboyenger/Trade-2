@@ -51,7 +51,7 @@ export function createChallengeReporter(notify: NotifyFn): ChallengeReporter {
     async sendDailySummary(status, report) {
       const lines = [
         `📈 Challenge daily summary (${status.status})`,
-        `Equity: ${money(status.equity)} / goal $10,000 (${status.progressPct.toFixed(1)}%)`,
+        `Equity: ${money(status.equity)} / goal ${money(status.goal)} (${status.progressPct.toFixed(1)}%)`,
         `Drawdown from peak: ${status.drawdownPct.toFixed(1)}%`,
         `Crypto sleeve: ${money(status.sleeves.crypto.equity)} (day ${money(status.sleeves.crypto.dailyRealizedPnL)})`,
         `Prediction sleeve: ${money(status.sleeves.prediction.equity)} (day ${money(status.sleeves.prediction.dailyRealizedPnL)})`,
