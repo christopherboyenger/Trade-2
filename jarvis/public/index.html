@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Jarvis — Trading Dashboard</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">⬡ JARVIS</div>
+    <div class="status">
+      <span id="mode-badge" class="badge">…</span>
+      <span id="brain-badge" class="badge muted">brain: …</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="left">
+      <div class="net-worth">
+        <div class="label">Total equity</div>
+        <div id="total-equity" class="value">—</div>
+        <div id="total-pnl" class="pnl">—</div>
+        <div class="asof" id="as-of"></div>
+      </div>
+
+      <div id="venues" class="venues"></div>
+
+      <h2 class="section-title">Positions</h2>
+      <div class="table-wrap">
+        <table id="positions">
+          <thead>
+            <tr><th>Venue</th><th>Symbol</th><th>Qty</th><th>Avg</th><th>Mark</th><th>Value</th><th>P&L</th></tr>
+          </thead>
+          <tbody><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="right">
+      <h2 class="section-title">Jarvis</h2>
+      <div id="chat" class="chat"></div>
+      <form id="chat-form" class="chat-form">
+        <input id="chat-input" type="text" autocomplete="off"
+               placeholder="Ask Jarvis… e.g. what's my exposure?" />
+        <button type="submit">Send</button>
+      </form>
+      <div class="hint">Tip: try "What are my positions?" or "Buy $100 of AAPL" (paper).</div>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

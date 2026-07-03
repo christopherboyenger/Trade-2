@@ -81,3 +81,6 @@ CLAWDBOT_ARCHITECTURE.md
 # Standalone compute API server (monetization layer — hosted only)
 src/api/
 .vercel
+
+# Vendored Ollama/runtime binaries (install separately, fetched by Tauri sidecar)
+openjarvis/desktop/src-tauri/binaries/
