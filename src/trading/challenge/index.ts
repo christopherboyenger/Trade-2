@@ -24,6 +24,7 @@ import { createChallengeCryptoStrategy } from './strategies/crypto-momentum.js';
 import { createChallengePredictionStrategy, type PredictionFeedLike } from './strategies/prediction-value.js';
 import {
   resolveChallengeConfig,
+  RISK_PRESETS,
   type ChallengeConfig,
   type ChallengeStatusView,
   type PromotionReport,
@@ -113,9 +114,14 @@ export function createChallengeManager(deps: ChallengeManagerDeps): ChallengeMan
     getPortfolio: () => broker.getPortfolio('prediction'),
   });
 
+  const riskPreset = RISK_PRESETS[cfg.riskLevel];
   const cryptoStrategy = createChallengeCryptoStrategy({
     getOHLCV: (symbol, interval, limit) => cryptoFeed.getOHLCV(symbol, interval, limit),
-    params: { riskPerTradePct: cfg.riskPerTradePct },
+    params: {
+      riskPerTradePct: cfg.riskPerTradePct,
+      donchianEntryPeriod: riskPreset.donchianEntryPeriod,
+      donchianExitPeriod: riskPreset.donchianExitPeriod,
+    },
   });
   cryptoBots.registerStrategy(cryptoStrategy);
 

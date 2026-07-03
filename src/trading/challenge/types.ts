@@ -24,6 +24,35 @@ export interface SleeveConfig {
   maxDailyTrades: number;
 }
 
+export type RiskLevel = 1 | 2 | 3 | 4 | 5;
+
+export interface RiskPreset {
+  level: RiskLevel;
+  name: string;
+  description: string;
+  /** % of sleeve equity risked per trade */
+  riskPerTradePct: number;
+  /** Per-position cap as a fraction of sleeve allocation */
+  positionCapFrac: number;
+  /** Donchian entry channel (bars) — shorter fires more often */
+  donchianEntryPeriod: number;
+  /** Donchian exit channel (bars) */
+  donchianExitPeriod: number;
+}
+
+/**
+ * The risk dial. It scales EXPOSURE (size + trade frequency), never the
+ * safety rails: the 5% daily halt, 15% drawdown kill switch, mandatory
+ * stops and breakers are identical at every level.
+ */
+export const RISK_PRESETS: Record<RiskLevel, RiskPreset> = {
+  1: { level: 1, name: 'Cautious',   description: 'Smallest positions, only the strongest breakouts. Slow and steady.', riskPerTradePct: 0.5,  positionCapFrac: 0.15, donchianEntryPeriod: 30, donchianExitPeriod: 15 },
+  2: { level: 2, name: 'Careful',    description: 'Small positions, selective entries.',                                riskPerTradePct: 0.75, positionCapFrac: 0.2,  donchianEntryPeriod: 25, donchianExitPeriod: 12 },
+  3: { level: 3, name: 'Standard',   description: 'The default challenge profile.',                                     riskPerTradePct: 1,    positionCapFrac: 0.2,  donchianEntryPeriod: 20, donchianExitPeriod: 10 },
+  4: { level: 4, name: 'Aggressive', description: 'Bigger positions, quicker triggers. Expect deeper swings.',          riskPerTradePct: 1.5,  positionCapFrac: 0.3,  donchianEntryPeriod: 14, donchianExitPeriod: 7 },
+  5: { level: 5, name: 'Max risk',   description: 'Largest positions, most trades. Highest potential return and the fastest path to the kill switch.', riskPerTradePct: 2.5, positionCapFrac: 0.4, donchianEntryPeriod: 10, donchianExitPeriod: 5 },
+};
+
 export interface ChallengeConfig {
   /** Challenge identifier (allows multiple runs) */
   id: string;
@@ -31,6 +60,8 @@ export interface ChallengeConfig {
   bankroll: number;
   /** Equity target the challenge is chasing (USD). Defaults to 10x bankroll. */
   goal: number;
+  /** Risk dial 1 (cautious) .. 5 (max). Scales exposure, never the safety rails. */
+  riskLevel: RiskLevel;
   sleeves: Record<SleeveId, SleeveConfig>;
   /** Risk per trade as % of sleeve equity (position sized so stop-distance loss = this) */
   riskPerTradePct: number;
@@ -69,6 +100,7 @@ export const DEFAULT_CHALLENGE_CONFIG: ChallengeConfig = {
   id: 'default',
   bankroll: 1000,
   goal: 10_000,
+  riskLevel: 3,
   sleeves: {
     crypto: {
       allocation: 500,
@@ -113,19 +145,29 @@ export function resolveChallengeConfig(partial?: Partial<ChallengeConfig>): Chal
   const base = DEFAULT_CHALLENGE_CONFIG;
   const bankroll = partial?.bankroll && partial.bankroll > 0 ? partial.bankroll : base.bankroll;
   const scale = bankroll / base.bankroll;
-  const scaled = (s: SleeveConfig): SleeveConfig => ({
+  const riskLevel = (partial?.riskLevel && RISK_PRESETS[partial.riskLevel] ? partial.riskLevel : base.riskLevel) as RiskLevel;
+  const preset = RISK_PRESETS[riskLevel];
+  // Position cap = preset fraction of the (scaled) sleeve allocation.
+  // The prediction sleeve keeps its historical 2:1 ratio vs crypto.
+  const scaled = (s: SleeveConfig, capFrac: number): SleeveConfig => ({
     ...s,
     allocation: s.allocation * scale,
-    maxPositionSize: s.maxPositionSize * scale,
+    maxPositionSize: s.allocation * scale * capFrac,
   });
   return {
     ...base,
     ...partial,
     bankroll,
     goal: partial?.goal && partial.goal > 0 ? partial.goal : bankroll * 10,
+    riskLevel,
+    riskPerTradePct: partial?.riskPerTradePct ?? preset.riskPerTradePct,
+    // The ceiling rises only far enough to admit the chosen preset (level 5
+    // needs 2.5%); non-dial configs keep the historical 2% clamp. Every other
+    // rail (daily cap, drawdown kill, breakers) comes from base/partial as-is.
+    maxRiskPerTradePct: partial?.maxRiskPerTradePct ?? Math.max(base.maxRiskPerTradePct, preset.riskPerTradePct),
     sleeves: {
-      crypto: { ...scaled(base.sleeves.crypto), ...partial?.sleeves?.crypto },
-      prediction: { ...scaled(base.sleeves.prediction), ...partial?.sleeves?.prediction },
+      crypto: { ...scaled(base.sleeves.crypto, preset.positionCapFrac), ...partial?.sleeves?.crypto },
+      prediction: { ...scaled(base.sleeves.prediction, preset.positionCapFrac / 2), ...partial?.sleeves?.prediction },
     },
   };
 }
