@@ -929,6 +929,9 @@ export async function createGateway(config: Config): Promise<AppGateway> {
   // Strategy builder — template-based + NL strategy creation
   let strategyBuilder: StrategyBuilder | null = null;
 
+  // $1k->$10k paper-trading challenge (never touches live execution)
+  let challengeManager: import('../trading/challenge/index.js').ChallengeManager | null = null;
+
   const sendMessage = async (message: OutgoingMessage): Promise<string | null> => {
     if (!channels) {
       logger.warn({ platform: message.platform }, 'Channel manager not ready; dropping message');
@@ -2464,6 +2467,32 @@ export async function createGateway(config: Config): Promise<AppGateway> {
 
   logger.info({ strategies: botManager.getStrategies().length }, 'Bot manager initialized with built-in strategies');
 
+  // Start the $1k->$10k paper-trading challenge if enabled.
+  // Deliberately OUTSIDE any executionService guard: the challenge is paper-only
+  // and must run with zero exchange credentials.
+  if (config.trading?.challenge?.enabled) {
+    try {
+      const { createChallengeManager } = await import('../trading/challenge/index.js');
+      const challengeCfg = config.trading.challenge;
+      challengeManager = createChallengeManager({
+        db,
+        feeds,
+        config: challengeCfg,
+        notify: challengeCfg.alertChannel && challengeCfg.alertChatId
+          ? async (text) => {
+              await sendMessage({ platform: challengeCfg.alertChannel!, chatId: challengeCfg.alertChatId!, text });
+            }
+          : undefined,
+      });
+      await challengeManager.start();
+      const { createChallengeRouter } = await import('./challenge-routes.js');
+      httpGateway.setChallengeRouter(createChallengeRouter({ manager: challengeManager }));
+      logger.info('Challenge manager started (paper trading)');
+    } catch (err) {
+      logger.error({ err }, 'Failed to start challenge manager');
+    }
+  }
+
   // Wire trading API endpoints (positions, portfolio, orders, signals, orchestrator)
   const backtestEngine: BacktestEngine = createBacktestEngine(db);
   const tradingApiRouter = createTradingApiRouter({
@@ -2495,6 +2524,7 @@ export async function createGateway(config: Config): Promise<AppGateway> {
       onShutdown(async () => {
         logger.info('Shutting down gateway services');
         if (executionProducer) await executionProducer.close();
+        if (challengeManager) await challengeManager.stop();
         if (botManager) {
           for (const s of botManager.getAllBotStatuses()) {
             if (s.status === 'running' || s.status === 'paused') {
@@ -2743,6 +2773,12 @@ export async function createGateway(config: Config): Promise<AppGateway> {
       if (arbitrageExecutor) {
         arbitrageExecutor.stop();
         arbitrageExecutor = null;
+      }
+
+      // Stop the challenge manager (paper-trading bots + timers)
+      if (challengeManager) {
+        await challengeManager.stop();
+        challengeManager = null;
       }
 
       // Stop bot manager (stops all running bots)

@@ -798,6 +798,67 @@ export function createMomentumStrategy(config: Partial<StrategyConfig> = {}): St
  * Finds markets with similar questions across platforms and
  * generates signals when there's a significant price discrepancy.
  */
+// Normalize question text for cross-platform matching
+export function normalizeQuestion(q: string): string {
+  return q.toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Extract key entities for matching
+export function extractEntities(question: string): {
+  year?: string;
+  person?: string;
+  threshold?: string;
+} {
+  const yearMatch = question.match(/\b(20[2-3]\d)\b/);
+  const personMatch = question.match(/\b(trump|biden|harris|desantis|musk|powell)\b/i);
+  const thresholdMatch = question.match(/\$?([\d,.]+)\s*(k|m|b|%|percent)?/i);
+
+  return {
+    year: yearMatch?.[1],
+    person: personMatch?.[1]?.toLowerCase(),
+    threshold: thresholdMatch?.[0],
+  };
+}
+
+// Generate a canonical ID for matching the same market across platforms
+export function generateCanonicalId(market: Market): string | null {
+  const q = normalizeQuestion(market.question);
+  const entities = extractEntities(market.question);
+
+  // Key patterns for well-known market types
+  if (q.includes('bitcoin') || q.includes('btc')) {
+    const priceMatch = market.question.match(/\$?([\d,]+)\s*(k)?/i);
+    if (priceMatch) {
+      const price = priceMatch[1].replace(/,/g, '') + (priceMatch[2] ? '000' : '');
+      return `btc_price_${price}`;
+    }
+  }
+
+  if (q.includes('president') || q.includes('election')) {
+    if (entities.year && entities.person) {
+      return `election_${entities.year}_${entities.person}`;
+    }
+  }
+
+  if (q.includes('fed') && q.includes('rate')) {
+    const dateMatch = q.match(/(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\s*\d*/i);
+    if (dateMatch) {
+      return `fed_rate_${dateMatch[0].toLowerCase().replace(/\s+/g, '_')}`;
+    }
+  }
+
+  // Generic fallback - first 5 significant words
+  const words = q.split(' ').filter(w => w.length > 3).slice(0, 5);
+  if (words.length >= 3) {
+    return `generic_${words.join('_')}`;
+  }
+
+  return null;
+}
+
 export function createArbitrageStrategy(config: Partial<StrategyConfig> = {}): Strategy {
   const fullConfig: StrategyConfig = {
     id: config.id || 'arbitrage',
@@ -819,67 +880,6 @@ export function createArbitrageStrategy(config: Partial<StrategyConfig> = {}): S
 
   // Track matched market pairs (canonicalId -> markets by platform)
   const matchedPairs = new Map<string, Map<Platform, { marketId: string; price: number; outcome: string }>>();
-
-  // Normalize question text for matching
-  function normalizeQuestion(q: string): string {
-    return q.toLowerCase()
-      .replace(/[^a-z0-9\s]/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-  }
-
-  // Extract key entities for matching
-  function extractEntities(question: string): {
-    year?: string;
-    person?: string;
-    threshold?: string;
-  } {
-    const yearMatch = question.match(/\b(20[2-3]\d)\b/);
-    const personMatch = question.match(/\b(trump|biden|harris|desantis|musk|powell)\b/i);
-    const thresholdMatch = question.match(/\$?([\d,.]+)\s*(k|m|b|%|percent)?/i);
-
-    return {
-      year: yearMatch?.[1],
-      person: personMatch?.[1]?.toLowerCase(),
-      threshold: thresholdMatch?.[0],
-    };
-  }
-
-  // Generate a canonical ID for matching across platforms
-  function generateCanonicalId(market: Market): string | null {
-    const q = normalizeQuestion(market.question);
-    const entities = extractEntities(market.question);
-
-    // Key patterns for well-known market types
-    if (q.includes('bitcoin') || q.includes('btc')) {
-      const priceMatch = market.question.match(/\$?([\d,]+)\s*(k)?/i);
-      if (priceMatch) {
-        const price = priceMatch[1].replace(/,/g, '') + (priceMatch[2] ? '000' : '');
-        return `btc_price_${price}`;
-      }
-    }
-
-    if (q.includes('president') || q.includes('election')) {
-      if (entities.year && entities.person) {
-        return `election_${entities.year}_${entities.person}`;
-      }
-    }
-
-    if (q.includes('fed') && q.includes('rate')) {
-      const dateMatch = q.match(/(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\w*\s*\d*/i);
-      if (dateMatch) {
-        return `fed_rate_${dateMatch[0].toLowerCase().replace(/\s+/g, '_')}`;
-      }
-    }
-
-    // Generic fallback - first 5 significant words
-    const words = q.split(' ').filter(w => w.length > 3).slice(0, 5);
-    if (words.length >= 3) {
-      return `generic_${words.join('_')}`;
-    }
-
-    return null;
-  }
 
   return {
     config: fullConfig,

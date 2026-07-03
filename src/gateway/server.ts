@@ -50,6 +50,7 @@ export interface GatewayServer {
   setOpportunityRouter(router: Router | null): void;
   setWhaleRouter(router: Router | null): void;
   setRiskRouter(router: Router | null): void;
+  setChallengeRouter(router: Router | null): void;
   setRoutingRouter(router: Router | null): void;
   setFeedsRouter(router: Router | null): void;
   setMonitoringRouter(router: Router | null): void;
@@ -2764,6 +2765,11 @@ export function createServer(
     setRiskRouter(router: Router | null): void {
       if (router) {
         app.use('/api/risk', requireAuth, router);
+      }
+    },
+    setChallengeRouter(router: Router | null): void {
+      if (router) {
+        app.use('/api/challenge', requireAuth, router);
       }
     },
     setRoutingRouter(router: Router | null): void {
