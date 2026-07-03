@@ -40,6 +40,18 @@ export interface SafetyConfig {
   autoCloseOnBreaker: boolean;
   /** Notify channels on safety event */
   notifyChannels?: string[];
+  /**
+   * State namespace. Default 1 uses the original `safety_state` table.
+   * Other values persist to `safety_state_<id>` so multiple SafetyManager
+   * instances (e.g. the paper-trading challenge) don't clobber each other.
+   */
+  stateId?: number;
+  /**
+   * Initial portfolio value used to seed peak/current value for drawdown
+   * tracking (default 10000). Set this to the actual starting bankroll or a
+   * small account will boot into an instant phantom drawdown.
+   */
+  initialValue?: number;
 }
 
 export interface SafetyState {
@@ -152,16 +164,23 @@ export function createSafetyManager(db: Database, config: Partial<SafetyConfig> 
   const emitter = new EventEmitter() as SafetyManager;
   const cfg: SafetyConfig = { ...DEFAULT_CONFIG, ...config };
 
+  const initialValue = cfg.initialValue ?? 10000;
+
   // State
   let state: SafetyState = {
     tradingEnabled: true,
     dailyPnL: 0,
     dailyTrades: 0,
-    peakValue: 10000,
-    currentValue: 10000,
+    peakValue: initialValue,
+    currentValue: initialValue,
     currentDrawdownPct: 0,
     alerts: [],
   };
+
+  // State table namespace: id 1 = legacy `safety_state`, others get their own table
+  // (the legacy table has a CHECK (id = 1) constraint, so extra rows are not an option)
+  const stateId = cfg.stateId ?? 1;
+  const stateTable = stateId === 1 ? 'safety_state' : `safety_state_${Math.floor(stateId)}`;
 
   // Initialize table
   db.run(`
@@ -177,7 +196,7 @@ export function createSafetyManager(db: Database, config: Partial<SafetyConfig> 
   `);
 
   db.run(`
-    CREATE TABLE IF NOT EXISTS safety_state (
+    CREATE TABLE IF NOT EXISTS ${stateTable} (
       id INTEGER PRIMARY KEY CHECK (id = 1),
       trading_enabled INTEGER DEFAULT 1,
       disabled_reason TEXT,
@@ -193,7 +212,7 @@ export function createSafetyManager(db: Database, config: Partial<SafetyConfig> 
 
   // Load state
   try {
-    const rows = db.query<any>(`SELECT * FROM safety_state WHERE id = 1`);
+    const rows = db.query<any>(`SELECT * FROM ${stateTable} WHERE id = 1`);
     if (rows.length > 0) {
       const row = rows[0];
       state.tradingEnabled = row.trading_enabled === 1;
@@ -202,8 +221,8 @@ export function createSafetyManager(db: Database, config: Partial<SafetyConfig> 
       state.resumeAt = row.resume_at ? new Date(row.resume_at) : undefined;
       state.dailyPnL = row.daily_pnl || 0;
       state.dailyTrades = row.daily_trades || 0;
-      state.peakValue = row.peak_value || 10000;
-      state.currentValue = row.current_value || 10000;
+      state.peakValue = row.peak_value || initialValue;
+      state.currentValue = row.current_value || initialValue;
       state.currentDrawdownPct = state.peakValue > 0
         ? ((state.peakValue - state.currentValue) / state.peakValue) * 100
         : 0;
@@ -217,15 +236,15 @@ export function createSafetyManager(db: Database, config: Partial<SafetyConfig> 
       }
     } else {
       // Initialize
-      db.run(`INSERT INTO safety_state (id) VALUES (1)`);
+      db.run(`INSERT INTO ${stateTable} (id, peak_value, current_value) VALUES (1, ?, ?)`, [initialValue, initialValue]);
     }
   } catch {
-    db.run(`INSERT OR IGNORE INTO safety_state (id) VALUES (1)`);
+    db.run(`INSERT OR IGNORE INTO ${stateTable} (id, peak_value, current_value) VALUES (1, ?, ?)`, [initialValue, initialValue]);
   }
 
   function saveState(): void {
     db.run(
-      `UPDATE safety_state SET
+      `UPDATE ${stateTable} SET
         trading_enabled = ?, disabled_reason = ?, disabled_at = ?, resume_at = ?,
         daily_pnl = ?, daily_trades = ?, peak_value = ?, current_value = ?, last_reset = ?
        WHERE id = 1`,
@@ -554,8 +573,11 @@ export function createSafetyManager(db: Database, config: Partial<SafetyConfig> 
   dailyResetTimeout = setTimeout(() => {
     // Store interval BEFORE calling resetDaily to prevent leak if destroy() races
     dailyResetInterval = setInterval(() => emitter.resetDaily(), 24 * 60 * 60 * 1000);
+    dailyResetInterval.unref?.();
     emitter.resetDaily();
   }, msUntilMidnight);
+  // Never keep a short-lived process (tests, CLI) alive for the midnight reset
+  dailyResetTimeout.unref?.();
 
   logger.info({ config: cfg }, 'Safety manager initialized');
   return emitter;
