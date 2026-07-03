@@ -1290,8 +1290,10 @@ export interface Config {
     /** $1k->$10k paper-trading challenge config */
     challenge?: {
       enabled?: boolean;
-      /** Starting bankroll in USD (paper). Default 1000 */
+      /** Starting bankroll in USD (paper). Default 1000. Sleeves scale with it. */
       bankroll?: number;
+      /** Equity goal in USD. Default 10x bankroll. */
+      goal?: number;
       /** Alert delivery channel id (e.g. 'telegram') */
       alertChannel?: string;
       /** Alert delivery chat id */

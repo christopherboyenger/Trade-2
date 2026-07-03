@@ -21,7 +21,7 @@ import { createRiskEngine, type RiskEngine } from '../../risk/index.js';
 import { logger } from '../../utils/logger.js';
 import type { Database } from '../../db/index.js';
 import type { Signal } from '../bots/index.js';
-import { DEFAULT_CHALLENGE_CONFIG, type ChallengeConfig, type ChallengeFill, type SleeveId } from './types.js';
+import { resolveChallengeConfig, type ChallengeConfig, type ChallengeFill, type SleeveId } from './types.js';
 import type { PaperBroker } from './paper-broker.js';
 
 /** Below this USD notional an entry is pointless (fees dominate) */
@@ -65,14 +65,7 @@ export interface RiskGateDeps {
 
 export function createChallengeRiskGate(deps: RiskGateDeps): ChallengeRiskGate {
   const emitter = new EventEmitter() as ChallengeRiskGate;
-  const cfg: ChallengeConfig = {
-    ...DEFAULT_CHALLENGE_CONFIG,
-    ...deps.config,
-    sleeves: {
-      crypto: { ...DEFAULT_CHALLENGE_CONFIG.sleeves.crypto, ...deps.config?.sleeves?.crypto },
-      prediction: { ...DEFAULT_CHALLENGE_CONFIG.sleeves.prediction, ...deps.config?.sleeves?.prediction },
-    },
-  };
+  const cfg: ChallengeConfig = resolveChallengeConfig(deps.config);
   const { broker } = deps;
 
   const dailyLossUsd = (cfg.bankroll * cfg.dailyLossCapPct) / 100;

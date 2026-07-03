@@ -29,6 +29,8 @@ export interface ChallengeConfig {
   id: string;
   /** Total starting bankroll (USD, paper) */
   bankroll: number;
+  /** Equity target the challenge is chasing (USD). Defaults to 10x bankroll. */
+  goal: number;
   sleeves: Record<SleeveId, SleeveConfig>;
   /** Risk per trade as % of sleeve equity (position sized so stop-distance loss = this) */
   riskPerTradePct: number;
@@ -66,6 +68,7 @@ export interface ChallengeConfig {
 export const DEFAULT_CHALLENGE_CONFIG: ChallengeConfig = {
   id: 'default',
   bankroll: 1000,
+  goal: 10_000,
   sleeves: {
     crypto: {
       allocation: 500,
@@ -97,6 +100,35 @@ export const DEFAULT_CHALLENGE_CONFIG: ChallengeConfig = {
   staleBookMs: 120_000,
   markIntervalMs: 30_000,
 };
+
+/**
+ * Merge a partial config over the defaults.
+ *
+ * When `bankroll` changes and sleeves are not explicitly pinned, sleeve
+ * allocations and per-position caps scale proportionally (a $5,000 bankroll
+ * gets $2,500 sleeves with $500/$250 position caps). `goal` defaults to
+ * 10x bankroll so "the challenge" keeps its meaning at any size.
+ */
+export function resolveChallengeConfig(partial?: Partial<ChallengeConfig>): ChallengeConfig {
+  const base = DEFAULT_CHALLENGE_CONFIG;
+  const bankroll = partial?.bankroll && partial.bankroll > 0 ? partial.bankroll : base.bankroll;
+  const scale = bankroll / base.bankroll;
+  const scaled = (s: SleeveConfig): SleeveConfig => ({
+    ...s,
+    allocation: s.allocation * scale,
+    maxPositionSize: s.maxPositionSize * scale,
+  });
+  return {
+    ...base,
+    ...partial,
+    bankroll,
+    goal: partial?.goal && partial.goal > 0 ? partial.goal : bankroll * 10,
+    sleeves: {
+      crypto: { ...scaled(base.sleeves.crypto), ...partial?.sleeves?.crypto },
+      prediction: { ...scaled(base.sleeves.prediction), ...partial?.sleeves?.prediction },
+    },
+  };
+}
 
 export type ChallengeRunStatus =
   | 'running'
