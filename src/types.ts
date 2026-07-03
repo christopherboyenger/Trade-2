@@ -1294,6 +1294,8 @@ export interface Config {
       bankroll?: number;
       /** Equity goal in USD. Default 10x bankroll. */
       goal?: number;
+      /** Risk dial 1 (cautious) .. 5 (max). Scales exposure, never the safety rails. Default 3. */
+      riskLevel?: 1 | 2 | 3 | 4 | 5;
       /** Alert delivery channel id (e.g. 'telegram') */
       alertChannel?: string;
       /** Alert delivery chat id */

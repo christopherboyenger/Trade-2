@@ -28,6 +28,41 @@
       --tooltip-bg: #f4f4f1; --tooltip-ink: #0b0b0b;
     }
   }
+  /* Explicit theme choice from the toggle overrides the OS preference */
+  :root[data-theme="dark"] {
+    --surface: #17181a; --panel: #1f2124; --panel-edge: #2e3136;
+    --ink: #f5f5f2; --ink-2: #b8b9b3; --ink-3: #7c7d78;
+    --btc: #3987e5; --eth: #d95926;
+    --good: #4dbb4d; --bad: #e66767; --warn: #d9a13a;
+    --grid: #26282c; --stop: #e66767; --level: #7c7d78;
+    --pill-run-bg: #14380f; --pill-run-ink: #8fdc82;
+    --pill-halt-bg: #3d1414; --pill-halt-ink: #f0a3a3;
+    --tooltip-bg: #f4f4f1; --tooltip-ink: #0b0b0b;
+  }
+  :root[data-theme="light"] {
+    --surface: #fcfcfb; --panel: #f4f4f1; --panel-edge: #e4e4df;
+    --ink: #0b0b0b; --ink-2: #52514e; --ink-3: #8a8983;
+    --btc: #2a78d6; --eth: #eb6834;
+    --good: #008300; --bad: #c73635; --warn: #a86f00;
+    --grid: #e8e8e3; --stop: #c73635; --level: #8a8983;
+    --pill-run-bg: #e2f2e2; --pill-run-ink: #005f00;
+    --pill-halt-bg: #fdeaea; --pill-halt-ink: #8f1f1f;
+    --tooltip-bg: #0b0b0b; --tooltip-ink: #fcfcfb;
+  }
+  .theme-btn {
+    margin-left: auto; padding: 4px 12px; border-radius: 99px;
+    border: 1px solid var(--panel-edge); background: var(--panel); color: var(--ink-2);
+    cursor: pointer; font-size: 11.5px; font-weight: 600; letter-spacing: 0.03em;
+  }
+  .theme-btn:hover { color: var(--ink); }
+  /* Risk dial */
+  .risk-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; width: 100%; }
+  .risk-scale { flex: 1; min-width: 220px; display: flex; flex-direction: column; gap: 4px; }
+  input[type="range"].risk {
+    width: 100%; margin: 0; accent-color: var(--btc); cursor: pointer;
+  }
+  .risk-ends { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.07em; }
+  .risk-badge { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 99px; border: 1px solid var(--panel-edge); white-space: nowrap; }
 
   * { box-sizing: border-box; }
   body {
@@ -104,8 +139,9 @@
     <h1>$1K → $10K Challenge · Live Console</h1>
     <span class="pill run" id="statusPill">LOADING</span>
     <span class="asof" id="asOf">fetching market data…</span>
+    <button class="theme-btn" id="themeBtn" aria-label="Switch color theme">Theme: Auto</button>
   </header>
-  <p class="sub">Live mirror of the paper-trading challenge: this page pulls real market data in your browser, replays the bot's production rules (Donchian 20/10 breakout · EMA 20/50 filter · ATR-sized stops · 1% risk per trade) over the last ~20 days of 1-hour candles, and refreshes automatically. The authoritative bot runs in the Clodds gateway; this console shows what its rules are doing in the market right now.</p>
+  <p class="sub">Live mirror of the paper-trading challenge: this page pulls real market data in your browser, replays the bot's production rules (Donchian breakout · EMA 20/50 filter · ATR-sized stops · position size set by the risk dial below) over the last ~20 days of 1-hour candles, and refreshes automatically. The authoritative bot runs in the Clodds gateway; this console shows what its rules are doing in the market right now.</p>
   <div class="banner" id="banner"><span class="dotlive"></span><span id="bannerText">Connecting to market data…</span><span style="margin-left:auto" class="num" id="countdown"></span></div>
 
   <div class="banner" style="gap:14px">
@@ -116,7 +152,18 @@
       <input type="number" id="setGoal" min="100" step="500" style="width:110px; padding:5px 8px; border-radius:6px; border:1px solid var(--panel-edge); background:var(--surface); color:var(--ink)" class="num">
     </label>
     <button id="setApply" style="padding:5px 14px; border-radius:6px; border:1px solid var(--panel-edge); background:var(--panel); color:var(--ink); cursor:pointer; font-weight:600">Apply</button>
-    <span id="setNote" style="color:var(--ink-3); font-size:11.5px">Sleeves and position caps scale with the bankroll; risk stays 1% per trade. Saved in your browser.</span>
+    <span id="setNote" style="color:var(--ink-3); font-size:11.5px">Sleeves and position caps scale with the bankroll. Saved in your browser.</span>
+  </div>
+
+  <div class="banner risk-row">
+    <span style="font-size:10.5px; text-transform:uppercase; letter-spacing:0.09em; color:var(--ink-3)">Risk</span>
+    <div class="risk-scale">
+      <input type="range" class="risk num" id="setRisk" min="1" max="5" step="1" value="3" list="riskTicks" aria-label="Risk level, 1 cautious to 5 maximum">
+      <datalist id="riskTicks"><option value="1"></option><option value="2"></option><option value="3"></option><option value="4"></option><option value="5"></option></datalist>
+      <div class="risk-ends"><span>Slow &amp; steady</span><span>Max risk / max return</span></div>
+    </div>
+    <span class="risk-badge" id="riskBadge">Standard</span>
+    <span id="riskNote" style="color:var(--ink-3); font-size:11.5px; flex-basis:100%">The dial scales position size and trade frequency. The safety rails — 5% daily halt, 15% drawdown kill switch, mandatory stops — are identical at every level.</span>
   </div>
 
   <div class="tiles" id="tiles"></div>
@@ -125,7 +172,7 @@
   <div class="grid2">
     <div class="card">
       <h3>BTC/USDT <span class="num" id="btcLast"></span> <span class="d num" id="btcChg"></span></h3>
-      <div class="meta">Donchian(20) breakout · EMA 20/50 trend filter · 2×ATR(14) stop</div>
+      <div class="meta" id="btcMeta">Donchian(20) breakout · EMA 20/50 trend filter · 2×ATR(14) stop</div>
       <div class="chart" id="btcChart"></div>
       <div class="legend"><span><i style="background:var(--btc)"></i>Close</span><span><i style="background:var(--btc);opacity:.55"></i>EMA 20</span><span><i style="background:var(--btc);opacity:.3"></i>EMA 50</span><span><i style="background:var(--level)"></i>Breakout / support</span><span><i style="background:var(--stop)"></i>Stop</span><span>▲ entry</span><span>✕ exit</span></div>
     </div>
@@ -199,16 +246,28 @@
 // =============================================================================
 // Config — mirrors src/trading/challenge (production parameters)
 // =============================================================================
+// Mirror of RISK_PRESETS in src/trading/challenge/types.ts — the dial scales
+// exposure (size + trade frequency); the safety rails never move with it.
+const RISK_PRESETS = {
+  1: { name: 'Cautious',   riskPct: 0.5,  capFrac: 0.15, donchEntry: 30, donchExit: 15, blurb: 'smallest positions, only the strongest breakouts' },
+  2: { name: 'Careful',    riskPct: 0.75, capFrac: 0.2,  donchEntry: 25, donchExit: 12, blurb: 'small positions, selective entries' },
+  3: { name: 'Standard',   riskPct: 1,    capFrac: 0.2,  donchEntry: 20, donchExit: 10, blurb: 'the default challenge profile' },
+  4: { name: 'Aggressive', riskPct: 1.5,  capFrac: 0.3,  donchEntry: 14, donchExit: 7,  blurb: 'bigger positions, quicker triggers — expect deeper swings' },
+  5: { name: 'Max risk',   riskPct: 2.5,  capFrac: 0.4,  donchEntry: 10, donchExit: 5,  blurb: 'largest positions, most trades — highest potential return and the fastest path to the kill switch' },
+};
 const PARAMS = {
   symbols: ['BTC', 'ETH'],
-  emaFast: 20, emaSlow: 50, donchEntry: 20, donchExit: 10, atrPeriod: 14,
+  emaFast: 20, emaSlow: 50, atrPeriod: 14,
   atrStopMult: 2, atrTrailMult: 2.5, atrTrailActMult: 1,
-  riskPct: 1, maxPositions: 2,
+  maxPositions: 2, maxExposurePct: 60, maxDailyTrades: 10,
   feeBps: 10, slipBps: 5,
-  // Derived from SETTINGS at replay time (mirrors resolveChallengeConfig):
-  // sleeveUsd = bankroll/2, maxPosUsd = 20% of sleeve
+  // Derived from SETTINGS at replay time (mirrors resolveChallengeConfig)
+  get preset() { return RISK_PRESETS[SETTINGS.riskLevel] ?? RISK_PRESETS[3]; },
+  get riskPct() { return this.preset.riskPct; },
+  get donchEntry() { return this.preset.donchEntry; },
+  get donchExit() { return this.preset.donchExit; },
   get sleeveUsd() { return SETTINGS.bankroll / 2; },
-  get maxPosUsd() { return SETTINGS.bankroll / 2 * 0.2; },
+  get maxPosUsd() { return this.sleeveUsd * this.preset.capFrac; },
 };
 const REFRESH_S = 60;
 const $ = (id) => document.getElementById(id);
@@ -220,6 +279,7 @@ const store = {
 const SETTINGS = {
   bankroll: Math.max(100, Number(store.get('challengeBankroll')) || 1000),
   goal: 0, // resolved below: explicit value or 10x bankroll
+  riskLevel: Math.min(5, Math.max(1, Math.round(Number(store.get('challengeRisk')) || 3))),
 };
 SETTINGS.goal = Math.max(100, Number(store.get('challengeGoal')) || SETTINGS.bankroll * 10);
 const fmt$ = (n, dp=2) => (n<0?'−$':'$') + Math.abs(n).toLocaleString('en-US',{minimumFractionDigits:dp, maximumFractionDigits:dp});
@@ -269,6 +329,7 @@ function atrAt(bars, i, p) { // Wilder ATR using bars up to i
 function replay(seriesBySym) {
   const P = PARAMS;
   let balance = P.sleeveUsd;
+  let tradeDay = '', tradesToday = 0; // mirrors the gate's maxDailyTrades counter
   const positions = {}; // sym -> {qty, avg, costBasis, stop, trailDist, trailAct, hw, entryTs}
   const fills = [];
   const equitySeries = [];
@@ -322,14 +383,19 @@ function replay(seriesBySym) {
         // Entry
         const entryHigh = donchHigh(bars, i, P.donchEntry);
         const openCount = Object.keys(positions).length;
-        if (entryHigh != null && bar.c > entryHigh && ef > es && openCount < P.maxPositions) {
+        const dayKey = new Date(bar.t).toISOString().slice(0, 10);
+        if (dayKey !== tradeDay) { tradeDay = dayKey; tradesToday = 0; }
+        if (entryHigh != null && bar.c > entryHigh && ef > es && openCount < P.maxPositions && tradesToday < P.maxDailyTrades) {
           const stop = bar.c - P.atrStopMult * atr;
           if (stop <= 0) continue;
           const riskFrac = (bar.c - stop) / bar.c;
           const sleeveEquity = equityAt(i);
+          // Mirrors risk-gate.ts: 60% sleeve exposure headroom clamps the entry
+          const exposureHeadroom = sleeveEquity * P.maxExposurePct/100 - (sleeveEquity - balance);
           let notional = (sleeveEquity * P.riskPct/100) / riskFrac;
-          notional = Math.min(notional, P.maxPosUsd, balance / (1 + P.feeBps/1e4));
+          notional = Math.min(notional, P.maxPosUsd, exposureHeadroom, balance / (1 + P.feeBps/1e4));
           if (notional < 5) continue;
+          tradesToday++;
           const fillPrice = bar.c * (1 + P.slipBps/1e4);
           const qty = notional / fillPrice;
           const fee = notional * (P.feeBps/1e4);
@@ -556,6 +622,7 @@ function render(data) {
     chg.textContent = fmtP(t.changePct) + ' 24h';
     chg.className = 'd num ' + (t.changePct>=0?'up':'dn');
   }
+  $('btcMeta').textContent = `Donchian(${PARAMS.donchEntry}) breakout · EMA 20/50 trend filter · 2×ATR(14) stop · risk ${PARAMS.riskPct}%/trade`;
 
   // Charts: show last ~200 bars for readability; markers from replay fills
   for (const sym of ['BTC','ETH']) {
@@ -620,7 +687,7 @@ function render(data) {
     const v = Object.values(byDay); return v.length? Math.min(...v) : 0;
   })();
   $('limits').innerHTML = [
-    ['Risk per trade', '1% of sleeve — sizing applied to every entry', ''],
+    ['Risk per trade', `${PARAMS.riskPct}% of sleeve (level ${SETTINGS.riskLevel}: ${PARAMS.preset.name}) — sizing applied to every entry`, ''],
     ['Daily loss cap ' + fmt$(bankroll*0.05, 0), 'worst day in window: ' + fmt$(worstDay), worstDay<=-bankroll*0.05?'wa':'up'],
     ['Max drawdown (kill 15%)', maxdd.toFixed(2)+'% — headroom '+(15-maxdd).toFixed(1)+'pts', maxdd>=15?'wa':'up'],
     ['Crypto positions', sim.open.length + ' of ' + PARAMS.maxPositions + (sim.open.length>=PARAMS.maxPositions?' — at cap':''), sim.open.length>=PARAMS.maxPositions?'wa':''],
@@ -667,7 +734,7 @@ function render(data) {
     <li><b>Trend:</b> BTC is in a 1h ${b.up?'uptrend':'downtrend'} (EMA20 ${b.up?'above':'below'} EMA50); ETH is in a 1h ${e.up?'uptrend':'downtrend'}. ${(!b.up && !e.up) ? 'The system’s edge in this state is patience — no breakout, no trade.' : 'The system takes breakouts only in the direction of this filter.'}</li>
     <li><b>Relative strength:</b> ${lead} is leading over 24h (${fmtP(tickers[lead].changePct)} vs ${fmtP(tickers[lead==='ETH'?'BTC':'ETH'].changePct)}).</li>
     <li><b>Levels:</b> BTC triggers above <span class="num">${b.dH?Math.round(b.dH).toLocaleString():'—'}</span>, structure fails below <span class="num">${b.dL?Math.round(b.dL).toLocaleString():'—'}</span>. ETH: <span class="num">${e.dH?fmtN(e.dH,0):'—'}</span> / <span class="num">${e.dL?fmtN(e.dL,0):'—'}</span>.</li>
-    <li><b>Volatility check:</b> a 2×ATR stop is currently ${(2*b.atr/b.spot*100).toFixed(1)}% on BTC and ${(2*e.atr/e.spot*100).toFixed(1)}% on ETH — the 1% risk rule sizes positions down as volatility expands.</li>
+    <li><b>Volatility check:</b> a 2×ATR stop is currently ${(2*b.atr/b.spot*100).toFixed(1)}% on BTC and ${(2*e.atr/e.spot*100).toFixed(1)}% on ETH — the ${PARAMS.riskPct}% risk rule sizes positions down as volatility expands.</li>
   </ul>`;
 }
 
@@ -696,8 +763,40 @@ $('gwBtn').addEventListener('click', async () => {
 const savedGw = store.get('challengeGatewayUrl');
 if (savedGw) $('gwUrl').value = savedGw;
 
+// Theme toggle: Auto -> Light -> Dark -> Auto
+const THEME_ORDER = ['auto', 'light', 'dark'];
+function applyTheme(theme) {
+  if (theme === 'auto') delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = theme;
+  $('themeBtn').textContent = 'Theme: ' + theme.charAt(0).toUpperCase() + theme.slice(1);
+}
+let currentTheme = THEME_ORDER.includes(store.get('challengeTheme')) ? store.get('challengeTheme') : 'auto';
+applyTheme(currentTheme);
+$('themeBtn').addEventListener('click', () => {
+  currentTheme = THEME_ORDER[(THEME_ORDER.indexOf(currentTheme) + 1) % THEME_ORDER.length];
+  store.set('challengeTheme', currentTheme);
+  applyTheme(currentTheme);
+});
+
+// Risk dial
+function describeRisk() {
+  const p = PARAMS.preset;
+  $('riskBadge').textContent = `${SETTINGS.riskLevel} · ${p.name}`;
+  $('riskNote').innerHTML = `<b>${p.name}:</b> ${p.blurb} — ${p.riskPct}% of sleeve risked per trade, ` +
+    `positions up to ${fmt$(PARAMS.maxPosUsd, 0)} (${Math.round(p.capFrac*100)}% of sleeve), Donchian(${p.donchEntry}/${p.donchExit}) entries. ` +
+    `Safety rails unchanged: 5% daily halt, 15% drawdown kill switch, mandatory stops.`;
+}
+$('setRisk').value = SETTINGS.riskLevel;
+$('setRisk').addEventListener('input', () => {
+  SETTINGS.riskLevel = Math.min(5, Math.max(1, Math.round(Number($('setRisk').value) || 3)));
+  store.set('challengeRisk', String(SETTINGS.riskLevel));
+  describeRisk();
+  if (lastData) render(lastData);
+});
+
 // Settings controls
 let lastData = null;
+describeRisk();
 $('setBankroll').value = SETTINGS.bankroll;
 $('setGoal').value = SETTINGS.goal;
 $('setApply').addEventListener('click', () => {
@@ -709,7 +808,8 @@ $('setApply').addEventListener('click', () => {
   $('setGoal').value = goal;
   store.set('challengeBankroll', String(bankroll));
   store.set('challengeGoal', String(goal));
-  $('setNote').textContent = `Applied: ${fmt$(bankroll,0)} bankroll (${fmt$(bankroll/2,0)} per sleeve, ${fmt$(bankroll/2*0.2,0)} position cap) chasing ${fmt$(goal,0)}.`;
+  $('setNote').textContent = `Applied: ${fmt$(bankroll,0)} bankroll (${fmt$(bankroll/2,0)} per sleeve, ${fmt$(PARAMS.maxPosUsd,0)} position cap) chasing ${fmt$(goal,0)}.`;
+  describeRisk();
   if (lastData) render(lastData);
 });
 

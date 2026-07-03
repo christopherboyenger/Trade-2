@@ -14,7 +14,12 @@ eligibility for review.
 
 Enable it in config: `trading.challenge.enabled = true` (no API keys needed).
 Optional: `trading.challenge.bankroll` (default 1000 — sleeves and position
-caps scale with it) and `trading.challenge.goal` (default 10x bankroll).
+caps scale with it), `trading.challenge.goal` (default 10x bankroll), and
+`trading.challenge.riskLevel` 1-5 (default 3). The risk dial scales exposure —
+risk per trade 0.5%→2.5%, position caps 15%→40% of the crypto sleeve (half
+that for the prediction sleeve), entry channel
+Donchian 30→10 — but never the safety rails: the daily halt, drawdown kill
+switch, stops and breakers are identical at every level.
 Changing the bankroll of an existing run takes effect after `/challenge reset`.
 
 ## Commands
@@ -29,7 +34,7 @@ Changing the bankroll of an existing run takes effect after `/challenge reset`.
 
 ## Risk rules (enforced, not advisory)
 
-- 1% of sleeve equity risked per trade; mandatory stop on every position
+- Risk per trade set by the risk dial: 0.5%-2.5% of sleeve equity (1% at default level 3); mandatory stop on every position
 - Daily loss cap 5% of bankroll -> halted until next UTC day
 - Max drawdown 15% from peak -> kill switch, manual rearm required
 - 4 consecutive losses -> sleeve breaker (4h cooldown)
