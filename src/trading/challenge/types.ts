@@ -38,19 +38,25 @@ export interface RiskPreset {
   donchianEntryPeriod: number;
   /** Donchian exit channel (bars) */
   donchianExitPeriod: number;
+  /** Crypto watchlist — grows with the dial */
+  symbols: string[];
+  /** Max concurrent crypto positions */
+  maxConcurrentPositions: number;
 }
 
 /**
- * The risk dial. It scales EXPOSURE (size + trade frequency), never the
- * safety rails: the 5% daily halt, 15% drawdown kill switch, mandatory
- * stops and breakers are identical at every level.
+ * The risk dial. It scales EXPOSURE (size, trade frequency, and the width of
+ * the watchlist), never the safety rails: the 5% daily halt, 15% drawdown
+ * kill switch, mandatory stops and breakers are identical at every level.
+ * Note the extra symbols are highly correlated with BTC — a wider book is
+ * more exposure to the same trade, not true diversification.
  */
 export const RISK_PRESETS: Record<RiskLevel, RiskPreset> = {
-  1: { level: 1, name: 'Cautious',   description: 'Smallest positions, only the strongest breakouts. Slow and steady.', riskPerTradePct: 0.5,  positionCapFrac: 0.15, donchianEntryPeriod: 30, donchianExitPeriod: 15 },
-  2: { level: 2, name: 'Careful',    description: 'Small positions, selective entries.',                                riskPerTradePct: 0.75, positionCapFrac: 0.2,  donchianEntryPeriod: 25, donchianExitPeriod: 12 },
-  3: { level: 3, name: 'Standard',   description: 'The default challenge profile.',                                     riskPerTradePct: 1,    positionCapFrac: 0.2,  donchianEntryPeriod: 20, donchianExitPeriod: 10 },
-  4: { level: 4, name: 'Aggressive', description: 'Bigger positions, quicker triggers. Expect deeper swings.',          riskPerTradePct: 1.5,  positionCapFrac: 0.3,  donchianEntryPeriod: 14, donchianExitPeriod: 7 },
-  5: { level: 5, name: 'Max risk',   description: 'Largest positions, most trades. Highest potential return and the fastest path to the kill switch.', riskPerTradePct: 2.5, positionCapFrac: 0.4, donchianEntryPeriod: 10, donchianExitPeriod: 5 },
+  1: { level: 1, name: 'Cautious',   description: 'Smallest positions, only the strongest breakouts. Slow and steady.', riskPerTradePct: 0.5,  positionCapFrac: 0.15, donchianEntryPeriod: 30, donchianExitPeriod: 15, symbols: ['BTC', 'ETH'], maxConcurrentPositions: 2 },
+  2: { level: 2, name: 'Careful',    description: 'Small positions, selective entries.',                                riskPerTradePct: 0.75, positionCapFrac: 0.2,  donchianEntryPeriod: 25, donchianExitPeriod: 12, symbols: ['BTC', 'ETH'], maxConcurrentPositions: 2 },
+  3: { level: 3, name: 'Standard',   description: 'The default challenge profile.',                                     riskPerTradePct: 1,    positionCapFrac: 0.2,  donchianEntryPeriod: 20, donchianExitPeriod: 10, symbols: ['BTC', 'ETH', 'SOL'], maxConcurrentPositions: 2 },
+  4: { level: 4, name: 'Aggressive', description: 'Bigger positions, quicker triggers, wider watchlist. Expect deeper swings.', riskPerTradePct: 1.5, positionCapFrac: 0.3, donchianEntryPeriod: 14, donchianExitPeriod: 7, symbols: ['BTC', 'ETH', 'SOL', 'XRP'], maxConcurrentPositions: 3 },
+  5: { level: 5, name: 'Max risk',   description: 'Largest positions, most trades, full watchlist. Highest potential return and the fastest path to the kill switch.', riskPerTradePct: 2.5, positionCapFrac: 0.4, donchianEntryPeriod: 10, donchianExitPeriod: 5, symbols: ['BTC', 'ETH', 'SOL', 'XRP', 'DOGE'], maxConcurrentPositions: 4 },
 };
 
 export interface ChallengeConfig {
@@ -166,7 +172,11 @@ export function resolveChallengeConfig(partial?: Partial<ChallengeConfig>): Chal
     // rail (daily cap, drawdown kill, breakers) comes from base/partial as-is.
     maxRiskPerTradePct: partial?.maxRiskPerTradePct ?? Math.max(base.maxRiskPerTradePct, preset.riskPerTradePct),
     sleeves: {
-      crypto: { ...scaled(base.sleeves.crypto, preset.positionCapFrac), ...partial?.sleeves?.crypto },
+      crypto: {
+        ...scaled(base.sleeves.crypto, preset.positionCapFrac),
+        maxConcurrentPositions: preset.maxConcurrentPositions,
+        ...partial?.sleeves?.crypto,
+      },
       prediction: { ...scaled(base.sleeves.prediction, preset.positionCapFrac / 2), ...partial?.sleeves?.prediction },
     },
   };

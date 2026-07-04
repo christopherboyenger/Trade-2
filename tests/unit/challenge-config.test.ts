@@ -87,12 +87,26 @@ describe('resolveChallengeConfig', () => {
     assert.equal(cfg.riskLevel, 3);
   });
 
-  it('presets are monotonic: more risk, more size, quicker triggers', () => {
+  it('presets are monotonic: more risk, more size, quicker triggers, wider watchlist', () => {
     for (let l = 2 as 2|3|4|5; l <= 5; l++) {
       const prev = RISK_PRESETS[(l - 1) as 1|2|3|4], cur = RISK_PRESETS[l];
       assert.ok(cur.riskPerTradePct > prev.riskPerTradePct);
       assert.ok(cur.positionCapFrac >= prev.positionCapFrac);
       assert.ok(cur.donchianEntryPeriod < prev.donchianEntryPeriod);
+      assert.ok(cur.symbols.length >= prev.symbols.length);
+      assert.ok(cur.maxConcurrentPositions >= prev.maxConcurrentPositions);
+      // Lower-level watchlists are strict prefixes: dialing down never swaps assets
+      assert.deepEqual(cur.symbols.slice(0, prev.symbols.length), prev.symbols);
     }
+  });
+
+  it('risk level drives the watchlist and concurrency, overridable per sleeve', () => {
+    assert.deepEqual(resolveChallengeConfig({ riskLevel: 1 }).sleeves.crypto.maxConcurrentPositions, 2);
+    assert.deepEqual(RISK_PRESETS[1].symbols, ['BTC', 'ETH']);
+    const max = resolveChallengeConfig({ riskLevel: 5 });
+    assert.equal(max.sleeves.crypto.maxConcurrentPositions, 4);
+    assert.deepEqual(RISK_PRESETS[5].symbols, ['BTC', 'ETH', 'SOL', 'XRP', 'DOGE']);
+    const pinned = resolveChallengeConfig({ riskLevel: 5, sleeves: { crypto: { maxConcurrentPositions: 2 } } as any });
+    assert.equal(pinned.sleeves.crypto.maxConcurrentPositions, 2, 'explicit override wins');
   });
 });

@@ -9,7 +9,7 @@
   :root {
     --surface: #fcfcfb; --panel: #f4f4f1; --panel-edge: #e4e4df;
     --ink: #0b0b0b; --ink-2: #52514e; --ink-3: #8a8983;
-    --btc: #2a78d6; --eth: #eb6834;
+    --btc: #2a78d6; --eth: #eb6834; --sol: #4a3aa7; --xrp: #1baf7a; --doge: #eda100;
     --good: #008300; --bad: #c73635; --warn: #a86f00;
     --grid: #e8e8e3; --stop: #c73635; --level: #8a8983;
     --pill-run-bg: #e2f2e2; --pill-run-ink: #005f00;
@@ -20,7 +20,7 @@
     :root {
       --surface: #17181a; --panel: #1f2124; --panel-edge: #2e3136;
       --ink: #f5f5f2; --ink-2: #b8b9b3; --ink-3: #7c7d78;
-      --btc: #3987e5; --eth: #d95926;
+      --btc: #3987e5; --eth: #d95926; --sol: #9085e9; --xrp: #199e70; --doge: #c98500;
       --good: #4dbb4d; --bad: #e66767; --warn: #d9a13a;
       --grid: #26282c; --stop: #e66767; --level: #7c7d78;
       --pill-run-bg: #14380f; --pill-run-ink: #8fdc82;
@@ -32,7 +32,7 @@
   :root[data-theme="dark"] {
     --surface: #17181a; --panel: #1f2124; --panel-edge: #2e3136;
     --ink: #f5f5f2; --ink-2: #b8b9b3; --ink-3: #7c7d78;
-    --btc: #3987e5; --eth: #d95926;
+    --btc: #3987e5; --eth: #d95926; --sol: #9085e9; --xrp: #199e70; --doge: #c98500;
     --good: #4dbb4d; --bad: #e66767; --warn: #d9a13a;
     --grid: #26282c; --stop: #e66767; --level: #7c7d78;
     --pill-run-bg: #14380f; --pill-run-ink: #8fdc82;
@@ -42,7 +42,7 @@
   :root[data-theme="light"] {
     --surface: #fcfcfb; --panel: #f4f4f1; --panel-edge: #e4e4df;
     --ink: #0b0b0b; --ink-2: #52514e; --ink-3: #8a8983;
-    --btc: #2a78d6; --eth: #eb6834;
+    --btc: #2a78d6; --eth: #eb6834; --sol: #4a3aa7; --xrp: #1baf7a; --doge: #eda100;
     --good: #008300; --bad: #c73635; --warn: #a86f00;
     --grid: #e8e8e3; --stop: #c73635; --level: #8a8983;
     --pill-run-bg: #e2f2e2; --pill-run-ink: #005f00;
@@ -168,21 +168,8 @@
 
   <div class="tiles" id="tiles"></div>
 
-  <h2>Price &amp; signals — 1h candles, production parameters</h2>
-  <div class="grid2">
-    <div class="card">
-      <h3>BTC/USDT <span class="num" id="btcLast"></span> <span class="d num" id="btcChg"></span></h3>
-      <div class="meta" id="btcMeta">Donchian(20) breakout · EMA 20/50 trend filter · 2×ATR(14) stop</div>
-      <div class="chart" id="btcChart"></div>
-      <div class="legend"><span><i style="background:var(--btc)"></i>Close</span><span><i style="background:var(--btc);opacity:.55"></i>EMA 20</span><span><i style="background:var(--btc);opacity:.3"></i>EMA 50</span><span><i style="background:var(--level)"></i>Breakout / support</span><span><i style="background:var(--stop)"></i>Stop</span><span>▲ entry</span><span>✕ exit</span></div>
-    </div>
-    <div class="card">
-      <h3>ETH/USDT <span class="num" id="ethLast"></span> <span class="d num" id="ethChg"></span></h3>
-      <div class="meta">Same rules, independent position &amp; stops</div>
-      <div class="chart" id="ethChart"></div>
-      <div class="legend"><span><i style="background:var(--eth)"></i>Close</span><span><i style="background:var(--eth);opacity:.55"></i>EMA 20</span><span><i style="background:var(--eth);opacity:.3"></i>EMA 50</span><span><i style="background:var(--level)"></i>Breakout / support</span><span><i style="background:var(--stop)"></i>Stop</span><span>▲ entry</span><span>✕ exit</span></div>
-    </div>
-  </div>
+  <h2 id="chartsHeading">Price &amp; signals — 1h candles, production parameters</h2>
+  <div class="grid2" id="charts"></div>
 
   <h2>Performance — replayed window</h2>
   <div class="grid2">
@@ -210,10 +197,8 @@
   </div>
 
   <h2>Market research &amp; analysis</h2>
-  <div class="grid2">
-    <div class="card"><h3>BTC regime</h3><ul class="klist" id="btcRegime"></ul></div>
-    <div class="card"><h3>ETH regime</h3><ul class="klist" id="ethRegime"></ul></div>
-  </div>
+  <!-- regime cards are generated per active watchlist symbol -->
+  <div class="grid2" id="regimes"></div>
   <div class="grid2" style="margin-top:14px">
     <div class="card"><h3>Analyst read</h3><div class="note" id="analysis"></div></div>
     <div class="card">
@@ -249,26 +234,31 @@
 // Mirror of RISK_PRESETS in src/trading/challenge/types.ts — the dial scales
 // exposure (size + trade frequency); the safety rails never move with it.
 const RISK_PRESETS = {
-  1: { name: 'Cautious',   riskPct: 0.5,  capFrac: 0.15, donchEntry: 30, donchExit: 15, blurb: 'smallest positions, only the strongest breakouts' },
-  2: { name: 'Careful',    riskPct: 0.75, capFrac: 0.2,  donchEntry: 25, donchExit: 12, blurb: 'small positions, selective entries' },
-  3: { name: 'Standard',   riskPct: 1,    capFrac: 0.2,  donchEntry: 20, donchExit: 10, blurb: 'the default challenge profile' },
-  4: { name: 'Aggressive', riskPct: 1.5,  capFrac: 0.3,  donchEntry: 14, donchExit: 7,  blurb: 'bigger positions, quicker triggers — expect deeper swings' },
-  5: { name: 'Max risk',   riskPct: 2.5,  capFrac: 0.4,  donchEntry: 10, donchExit: 5,  blurb: 'largest positions, most trades — highest potential return and the fastest path to the kill switch' },
+  1: { name: 'Cautious',   riskPct: 0.5,  capFrac: 0.15, donchEntry: 30, donchExit: 15, symbols: ['BTC','ETH'], maxConcurrent: 2, blurb: 'smallest positions, only the strongest breakouts' },
+  2: { name: 'Careful',    riskPct: 0.75, capFrac: 0.2,  donchEntry: 25, donchExit: 12, symbols: ['BTC','ETH'], maxConcurrent: 2, blurb: 'small positions, selective entries' },
+  3: { name: 'Standard',   riskPct: 1,    capFrac: 0.2,  donchEntry: 20, donchExit: 10, symbols: ['BTC','ETH','SOL'], maxConcurrent: 2, blurb: 'the default challenge profile' },
+  4: { name: 'Aggressive', riskPct: 1.5,  capFrac: 0.3,  donchEntry: 14, donchExit: 7,  symbols: ['BTC','ETH','SOL','XRP'], maxConcurrent: 3, blurb: 'bigger positions, quicker triggers, wider watchlist — expect deeper swings' },
+  5: { name: 'Max risk',   riskPct: 2.5,  capFrac: 0.4,  donchEntry: 10, donchExit: 5,  symbols: ['BTC','ETH','SOL','XRP','DOGE'], maxConcurrent: 4, blurb: 'largest positions, most trades, full watchlist — highest potential return and the fastest path to the kill switch' },
 };
+const UNIVERSE = ['BTC', 'ETH', 'SOL', 'XRP', 'DOGE']; // always fetched; the dial picks the active subset
 const PARAMS = {
-  symbols: ['BTC', 'ETH'],
   emaFast: 20, emaSlow: 50, atrPeriod: 14,
   atrStopMult: 2, atrTrailMult: 2.5, atrTrailActMult: 1,
-  maxPositions: 2, maxExposurePct: 60, maxDailyTrades: 10,
+  maxExposurePct: 60, maxDailyTrades: 10,
   feeBps: 10, slipBps: 5,
   // Derived from SETTINGS at replay time (mirrors resolveChallengeConfig)
   get preset() { return RISK_PRESETS[SETTINGS.riskLevel] ?? RISK_PRESETS[3]; },
+  get symbols() { return this.preset.symbols; },
+  get maxPositions() { return this.preset.maxConcurrent; },
   get riskPct() { return this.preset.riskPct; },
   get donchEntry() { return this.preset.donchEntry; },
   get donchExit() { return this.preset.donchExit; },
   get sleeveUsd() { return SETTINGS.bankroll / 2; },
   get maxPosUsd() { return this.sleeveUsd * this.preset.capFrac; },
 };
+// Decimal places by price magnitude (XRP/DOGE trade under $10)
+const dp = (v) => (v >= 1000 ? 0 : v >= 10 ? 2 : 4);
+const yfmt = (v) => (v >= 1000 ? Math.round(v).toLocaleString() : v >= 10 ? v.toFixed(1) : v.toFixed(3));
 const REFRESH_S = 60;
 const $ = (id) => document.getElementById(id);
 const store = {
@@ -426,6 +416,8 @@ function replay(seriesBySym) {
 const jget = (url) => fetch(url, { signal: AbortSignal.timeout(10000) })
   .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
 
+// Per-provider pair naming (Kraken: BTC->XBT, DOGE->XDG)
+const KRAKEN_ALIAS = { BTC: 'XBT', DOGE: 'XDG' };
 const PROVIDERS = [
   {
     name: 'Binance',
@@ -467,7 +459,7 @@ const PROVIDERS = [
   {
     name: 'Kraken',
     async fetchSymbol(sym) {
-      const pair = (sym === 'BTC' ? 'XBT' : sym) + 'USD';
+      const pair = (KRAKEN_ALIAS[sym] ?? sym) + 'USD';
       const [ohlc, tick] = await Promise.all([
         jget(`https://api.kraken.com/0/public/OHLC?pair=${pair}&interval=60`),
         jget(`https://api.kraken.com/0/public/Ticker?pair=${pair}`),
@@ -497,9 +489,11 @@ async function fetchAll() {
   let lastErr = null;
   for (const provider of order) {
     try {
-      const [btc, eth] = await Promise.all([provider.fetchSymbol('BTC'), provider.fetchSymbol('ETH')]);
+      const results = await Promise.all(UNIVERSE.map((sym) => provider.fetchSymbol(sym)));
       activeProvider = provider;
-      return { provider: provider.name, series: { BTC: btc.bars, ETH: eth.bars }, tickers: { BTC: btc.ticker, ETH: eth.ticker } };
+      const series = {}, tickers = {};
+      UNIVERSE.forEach((sym, i) => { series[sym] = results[i].bars; tickers[sym] = results[i].ticker; });
+      return { provider: provider.name, series, tickers };
     } catch (err) {
       lastErr = err;
       activeProvider = null;
@@ -524,7 +518,7 @@ function chart(el, bars, opts) {
   let g='';
   for (let t=0;t<=3;t++){ const v=lo+(hi-lo)*t/3, y=Y(v);
     g+=`<line x1="${padL}" x2="${W-padR}" y1="${y}" y2="${y}" stroke="var(--grid)" stroke-width="1"/>`;
-    g+=`<text x="${padL-6}" y="${y+3.5}" text-anchor="end" font-size="9.5" fill="var(--ink-3)" font-family="ui-monospace,monospace">${Math.round(v).toLocaleString()}</text>`; }
+    g+=`<text x="${padL-6}" y="${y+3.5}" text-anchor="end" font-size="9.5" fill="var(--ink-3)" font-family="ui-monospace,monospace">${yfmt(v)}</text>`; }
   for (let t=0;t<4;t++){ const i=Math.round((bars.length-1)*t/3);
     g+=`<text x="${X(i)}" y="${H-6}" text-anchor="middle" font-size="9.5" fill="var(--ink-3)" font-family="ui-monospace,monospace">${new Date(ts[i]).toISOString().slice(5,10)}</text>`; }
   for (const lv of (opts.levels||[])) {
@@ -550,7 +544,8 @@ function chart(el, bars, opts) {
     const i=Math.max(0,Math.min(bars.length-1,Math.round((fx-padL)/(W-padL-padR)*(bars.length-1))));
     const b=bars[i];
     tip.style.display='block';
-    tip.textContent=`${dstr(ts[i])}\nO ${fmtN(b.o)}  H ${fmtN(b.h)}\nL ${fmtN(b.l)}  C ${fmtN(b.c)}`;
+    const td = dp(b.c);
+    tip.textContent=`${dstr(ts[i])}\nO ${fmtN(b.o,td)}  H ${fmtN(b.h,td)}\nL ${fmtN(b.l,td)}  C ${fmtN(b.c,td)}`;
     tip.style.left=Math.min((X(i)/W)*r.width+12, r.width-140)+'px';
     tip.style.top='8px';
   });
@@ -615,30 +610,38 @@ function render(data) {
   ];
   $('tiles').innerHTML = tiles.map(([l,v,c,d]) => `<div class="tile"><small>${l}</small><b class="${c}">${v}</b><span class="d">${d}</span></div>`).join('');
 
-  for (const sym of ['BTC','ETH']) {
+  // Chart cards: one per active watchlist symbol (the dial sets the list)
+  $('chartsHeading').textContent = `Price & signals — 1h candles · watchlist: ${PARAMS.symbols.join(' · ')} (level ${SETTINGS.riskLevel})`;
+  $('charts').innerHTML = PARAMS.symbols.map((sym) => {
+    const cv = `var(--${sym.toLowerCase()})`;
+    return `<div class="card">
+      <h3>${sym}/USDT <span class="num" id="last-${sym}"></span> <span class="d num" id="chg-${sym}"></span></h3>
+      <div class="meta">Donchian(${PARAMS.donchEntry}) breakout · EMA 20/50 trend filter · 2×ATR(14) stop · risk ${PARAMS.riskPct}%/trade</div>
+      <div class="chart" id="chart-${sym}"></div>
+      <div class="legend"><span><i style="background:${cv}"></i>Close</span><span><i style="background:${cv};opacity:.55"></i>EMA 20</span><span><i style="background:${cv};opacity:.3"></i>EMA 50</span><span><i style="background:var(--level)"></i>Breakout / support</span><span><i style="background:var(--stop)"></i>Stop</span><span>▲ entry</span><span>✕ exit</span></div>
+    </div>`;
+  }).join('');
+  for (const sym of PARAMS.symbols) {
     const t = tickers[sym];
-    $(sym.toLowerCase()+'Last').textContent = fmt$(t.last, sym==='BTC'?0:2);
-    const chg = $(sym.toLowerCase()+'Chg');
+    const spotNow = series[sym][series[sym].length-1].c;
+    $('last-'+sym).textContent = fmt$(spotNow, dp(spotNow));
+    const chg = $('chg-'+sym);
     chg.textContent = fmtP(t.changePct) + ' 24h';
     chg.className = 'd num ' + (t.changePct>=0?'up':'dn');
-  }
-  $('btcMeta').textContent = `Donchian(${PARAMS.donchEntry}) breakout · EMA 20/50 trend filter · 2×ATR(14) stop · risk ${PARAMS.riskPct}%/trade`;
 
-  // Charts: show last ~200 bars for readability; markers from replay fills
-  for (const sym of ['BTC','ETH']) {
     const bars = series[sym].slice(-200);
     const i = series[sym].length - 1;
     const dHigh = donchHigh(series[sym], i, PARAMS.donchEntry);
     const dLow = donchLow(series[sym], i, PARAMS.donchExit);
     const pos = sim.open.find(p=>p.sym===sym);
     const stopLevel = pos ? (pos.hw != null ? Math.max(pos.stop, pos.hw - pos.trailDist) : pos.stop) : null;
-    chart($(sym.toLowerCase()+'Chart'), bars, {
-      color: sym==='BTC' ? 'var(--btc)' : 'var(--eth)',
+    chart($('chart-'+sym), bars, {
+      color: `var(--${sym.toLowerCase()})`,
       label: sym + ' 1h price with signals',
       levels: [
-        ...(dHigh?[{y:dHigh, label:'breakout '+Math.round(dHigh).toLocaleString()}]:[]),
+        ...(dHigh?[{y:dHigh, label:'breakout '+yfmt(dHigh)}]:[]),
         ...(dLow?[{y:dLow, label:'support', dash:'2 4'}]:[]),
-        ...(stopLevel?[{y:stopLevel, label:(pos.hw!=null?'trail ':'stop ')+Math.round(stopLevel).toLocaleString(), color:'var(--stop)'}]:[]),
+        ...(stopLevel?[{y:stopLevel, label:(pos.hw!=null?'trail ':'stop ')+yfmt(stopLevel), color:'var(--stop)'}]:[]),
       ],
       markers: sim.fills.filter(f=>f.sym===sym && f.ts >= bars[0].t).map(f=>({ts:f.ts, price:f.price, kind:f.side==='buy'?'entry':'exit'})),
     });
@@ -664,11 +667,12 @@ function render(data) {
   $('posTable').innerHTML = `<tr><th>Asset</th><th class="num">Qty</th><th class="num">Entry</th><th class="num">Now</th><th class="num">Stop</th><th class="num">P&L</th><th>Trail</th></tr>` +
     (sim.open.length ? sim.open.map(p=>{
       const pnlPct=(p.current-p.avg)/p.avg*100;
+      const d = dp(p.avg);
       const effStop = p.hw != null ? Math.max(p.stop, p.hw - p.trailDist) : p.stop;
-      const trail = p.hw != null ? 'armed @ '+fmtN(p.hw-p.trailDist,0) : 'arms +1×ATR';
+      const trail = p.hw != null ? 'armed @ '+yfmt(p.hw-p.trailDist) : 'arms +1×ATR';
       return `<tr><td><span class="dot" style="background:var(--${p.sym.toLowerCase()})"></span>${p.sym}</td>
-        <td class="num">${p.qty.toFixed(5)}</td><td class="num">${fmtN(p.avg)}</td><td class="num">${fmtN(p.current)}</td>
-        <td class="num">${fmtN(effStop,0)}</td><td class="num ${p.unrealized>=0?'up':'dn'}">${fmt$(p.unrealized)} (${fmtP(pnlPct,1)})</td>
+        <td class="num">${p.qty.toFixed(5)}</td><td class="num">${fmtN(p.avg,d)}</td><td class="num">${fmtN(p.current,d)}</td>
+        <td class="num">${yfmt(effStop)}</td><td class="num ${p.unrealized>=0?'up':'dn'}">${fmt$(p.unrealized)} (${fmtP(pnlPct,1)})</td>
         <td><span class="chip">${trail}</span></td></tr>`;
     }).join('') : `<tr><td colspan="7" style="color:var(--ink-3)">Flat — waiting for a breakout in an uptrend.</td></tr>`);
 
@@ -676,7 +680,7 @@ function render(data) {
   $('fillTable').innerHTML = `<tr><th>Time</th><th>Side</th><th>Asset</th><th class="num">Price</th><th class="num">P&L</th><th>Reason</th></tr>` +
     (recent.length ? recent.map(f=>`<tr><td class="num">${dstr(f.ts)}</td><td>${f.side.toUpperCase()}</td>
       <td><span class="dot" style="background:var(--${f.sym.toLowerCase()})"></span>${f.sym}</td>
-      <td class="num">${fmtN(f.price)}</td>
+      <td class="num">${fmtN(f.price, dp(f.price))}</td>
       <td class="num ${f.pnl==null?'':(f.pnl>=0?'up':'dn')}">${f.pnl==null?'—':fmt$(f.pnl)}</td>
       <td><span class="chip">${f.reason.replace(/_/g,' ')}</span></td></tr>`).join('')
       : `<tr><td colspan="6" style="color:var(--ink-3)">No fills in the window.</td></tr>`);
@@ -707,33 +711,38 @@ function render(data) {
   $('gateCount').textContent = gates.filter(g=>g.p).length + '/' + gates.length + ' green (mirror window only)';
   $('gates').innerHTML = gates.map(g=>`<li><span class="st ${g.p?'up':'dn'}">${g.p?'PASS':'OPEN'}</span><span>${g.g}<br><span class="num" style="font-size:11.5px;color:var(--ink-2)">${g.v}</span></span><span class="req">${g.r}</span></li>`).join('');
 
+  // Regime cards: one per active watchlist symbol
   const regimes = {};
-  for (const sym of ['BTC','ETH']) {
+  $('regimes').innerHTML = PARAMS.symbols.map((sym) => `<div class="card"><h3><span class="dot" style="background:var(--${sym.toLowerCase()})"></span>${sym} regime</h3><ul class="klist" id="regime-${sym}"></ul></div>`).join('');
+  for (const sym of PARAMS.symbols) {
     const bars = series[sym], i = bars.length-1, t = tickers[sym];
     const closes = bars.map(b=>b.c);
     // Spot from the candle series so every regime number shares one source
     const spot = bars[i].c;
+    const d = dp(spot);
     const ef = emaSeries(closes, PARAMS.emaFast)[i], es = emaSeries(closes, PARAMS.emaSlow)[i];
     const atr = atrAt(bars, i, PARAMS.atrPeriod);
     const dH = donchHigh(bars, i, PARAMS.donchEntry), dL = donchLow(bars, i, PARAMS.donchExit);
     regimes[sym] = { ef, es, atr, dH, dL, up: ef>es, spot };
-    $(sym.toLowerCase()+'Regime').innerHTML = [
-      ['Last / 24h', `${fmtN(spot, sym==='BTC'?0:2)} · ${fmtP(t.changePct)}`, t.changePct>=0?'up':'dn'],
+    $('regime-'+sym).innerHTML = [
+      ['Last / 24h', `${fmtN(spot, d)} · ${fmtP(t.changePct)}`, t.changePct>=0?'up':'dn'],
       ['Trend (1h)', ef>es?'uptrend — EMA20 above EMA50':'downtrend — EMA20 below EMA50', ef>es?'up':'dn'],
-      ['EMA 20 / 50', `${fmtN(ef,0)} / ${fmtN(es,0)}`, ''],
-      ['Volatility (ATR14)', `${fmtN(atr, sym==='BTC'?0:1)} · ${(atr/spot*100).toFixed(2)}% per 1h`, ''],
-      ['To breakout', dH? `${fmtN(dH, sym==='BTC'?0:1)} — ${((dH-spot)/spot*100).toFixed(2)}% above` : '—', ''],
-      ['To support', dL? `${fmtN(dL, sym==='BTC'?0:1)} — ${((spot-dL)/spot*100).toFixed(2)}% below` : '—', ''],
-      ['24h range', `${fmtN(t.low,0)} – ${fmtN(t.high,0)} · vol ${fmt$(t.volUsd/1e6,0)}M`, ''],
+      ['EMA 20 / 50', `${fmtN(ef,d)} / ${fmtN(es,d)}`, ''],
+      ['Volatility (ATR14)', `${fmtN(atr,d)} · ${(atr/spot*100).toFixed(2)}% per 1h`, ''],
+      ['To breakout', dH? `${fmtN(dH,d)} — ${((dH-spot)/spot*100).toFixed(2)}% above` : '—', ''],
+      ['To support', dL? `${fmtN(dL,d)} — ${((spot-dL)/spot*100).toFixed(2)}% below` : '—', ''],
+      ['24h range', `${fmtN(t.low,d)} – ${fmtN(t.high,d)} · vol ${fmt$(t.volUsd/1e6,0)}M`, ''],
     ].map(([k,v,c])=>`<li><span class="k">${k}</span><span class="num ${c}">${v}</span></li>`).join('');
   }
 
   const b = regimes.BTC, e = regimes.ETH;
-  const lead = tickers.ETH.changePct > tickers.BTC.changePct ? 'ETH' : 'BTC';
+  const active = PARAMS.symbols;
+  const lead = active.reduce((a, s) => tickers[s].changePct > tickers[a].changePct ? s : a, active[0]);
+  const upList = active.filter(s => regimes[s].up), downList = active.filter(s => !regimes[s].up);
   $('analysis').innerHTML = `<ul>
-    <li><b>Trend:</b> BTC is in a 1h ${b.up?'uptrend':'downtrend'} (EMA20 ${b.up?'above':'below'} EMA50); ETH is in a 1h ${e.up?'uptrend':'downtrend'}. ${(!b.up && !e.up) ? 'The system’s edge in this state is patience — no breakout, no trade.' : 'The system takes breakouts only in the direction of this filter.'}</li>
-    <li><b>Relative strength:</b> ${lead} is leading over 24h (${fmtP(tickers[lead].changePct)} vs ${fmtP(tickers[lead==='ETH'?'BTC':'ETH'].changePct)}).</li>
-    <li><b>Levels:</b> BTC triggers above <span class="num">${b.dH?Math.round(b.dH).toLocaleString():'—'}</span>, structure fails below <span class="num">${b.dL?Math.round(b.dL).toLocaleString():'—'}</span>. ETH: <span class="num">${e.dH?fmtN(e.dH,0):'—'}</span> / <span class="num">${e.dL?fmtN(e.dL,0):'—'}</span>.</li>
+    <li><b>Trend:</b> ${upList.length ? upList.join('/') + ' in a 1h uptrend (EMA20 above EMA50)' : 'nothing in an uptrend'}${downList.length ? '; ' + downList.join('/') + ' in a downtrend' : ''}. ${upList.length === 0 ? 'The system’s edge in this state is patience — no breakout, no trade.' : 'The system takes breakouts only in the direction of this filter.'}</li>
+    <li><b>Relative strength:</b> ${lead} leads the watchlist over 24h (${fmtP(tickers[lead].changePct)}).</li>
+    <li><b>Levels:</b> BTC triggers above <span class="num">${b.dH?yfmt(b.dH):'—'}</span>, structure fails below <span class="num">${b.dL?yfmt(b.dL):'—'}</span>. ETH: <span class="num">${e.dH?yfmt(e.dH):'—'}</span> / <span class="num">${e.dL?yfmt(e.dL):'—'}</span>.</li>
     <li><b>Volatility check:</b> a 2×ATR stop is currently ${(2*b.atr/b.spot*100).toFixed(1)}% on BTC and ${(2*e.atr/e.spot*100).toFixed(1)}% on ETH — the ${PARAMS.riskPct}% risk rule sizes positions down as volatility expands.</li>
   </ul>`;
 }
@@ -783,8 +792,10 @@ function describeRisk() {
   const p = PARAMS.preset;
   $('riskBadge').textContent = `${SETTINGS.riskLevel} · ${p.name}`;
   $('riskNote').innerHTML = `<b>${p.name}:</b> ${p.blurb} — ${p.riskPct}% of sleeve risked per trade, ` +
-    `positions up to ${fmt$(PARAMS.maxPosUsd, 0)} (${Math.round(p.capFrac*100)}% of sleeve), Donchian(${p.donchEntry}/${p.donchExit}) entries. ` +
-    `Safety rails unchanged: 5% daily halt, 15% drawdown kill switch, mandatory stops.`;
+    `positions up to ${fmt$(PARAMS.maxPosUsd, 0)} (${Math.round(p.capFrac*100)}% of sleeve), Donchian(${p.donchEntry}/${p.donchExit}) entries, ` +
+    `watchlist ${p.symbols.join('/')} with up to ${p.maxConcurrent} concurrent positions. ` +
+    `Safety rails unchanged: 5% daily halt, 15% drawdown kill switch, mandatory stops. ` +
+    `Note: these assets are highly correlated — a wider book is more exposure, not true diversification.`;
 }
 $('setRisk').value = SETTINGS.riskLevel;
 $('setRisk').addEventListener('input', () => {
