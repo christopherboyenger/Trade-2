@@ -84,3 +84,7 @@ src/api/
 
 # Vendored Ollama/runtime binaries (install separately, fetched by Tauri sidecar)
 openjarvis/desktop/src-tauri/binaries/
+
+# Private keys (Kalshi API, wallets) must never be committed
+*.pem
+*.key
