@@ -121,6 +121,7 @@ export function createChallengeManager(deps: ChallengeManagerDeps): ChallengeMan
       riskPerTradePct: cfg.riskPerTradePct,
       donchianEntryPeriod: riskPreset.donchianEntryPeriod,
       donchianExitPeriod: riskPreset.donchianExitPeriod,
+      symbols: riskPreset.symbols,
     },
   });
   cryptoBots.registerStrategy(cryptoStrategy);
