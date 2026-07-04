@@ -138,6 +138,7 @@ See [docs/USER_GUIDE.md](./docs/USER_GUIDE.md) for all commands.
 | **Prediction Markets** | 10 platforms (Polymarket, Kalshi, Betfair, Smarkets, Drift, Manifold, Metaculus, PredictIt, Opinion.xyz, Predict.fun) |
 | **Polymarket Crypto Markets** | Deep expertise in BTC/ETH/SOL/XRP binary markets — 5-minute (BTC only), 15-minute, 1-hour, 4-hour, and daily rounds with round-based discovery, timing gates, and 4 automated strategies |
 | **Perpetual Futures** | 7 exchanges (Binance, Bybit, Hyperliquid, MEXC, Drift, Percolator, Lighter) with up to 200x leverage, database tracking, A/B testing |
+| **Stocks & ETFs** | US equities via Alpaca (`/stocks`) — quotes, market/limit orders, fractional/notional sizing, positions & P&L. Paper trading by default |
 | **On-Chain Perps** | Percolator protocol — Solana-native perpetual futures with pluggable matchers, keeper cranking, real-time slab polling |
 | **Trading Strategies** | 118+ strategies including momentum, mean reversion, penny clipper, expiry fade, DCA bots, smart routing, whale tracking, copy trading |
 | **Risk Management** | Unified risk engine with circuit breaker, VaR/CVaR, volatility regime detection, stress testing, Kelly sizing, daily loss limits, kill switch |

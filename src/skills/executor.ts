@@ -50,6 +50,7 @@ const SKILL_MANIFEST: string[] = [
   'botchan',
   'bridge',
   'bybit-futures',
+  'challenge',
   'clanker',
   'copy-trading',
   'copy-trading-solana',
@@ -126,6 +127,7 @@ const SKILL_MANIFEST: string[] = [
   'slippage',
   'smarkets',
   'solend',
+  'stocks',
   'strategy',
   'streaming',
   'tailscale',
@@ -164,6 +166,7 @@ const SKILL_MANIFEST: string[] = [
 type SkillCategory =
   | 'DeFi & DEX'
   | 'Futures & Perps'
+  | 'Stocks'
   | 'Prediction Markets'
   | 'Solana DeFi'
   | 'Portfolio & Risk'
@@ -199,6 +202,9 @@ const SKILL_CATEGORIES: Record<string, SkillCategory> = {
   'bybit-futures': 'Futures & Perps',
   'mexc-futures': 'Futures & Perps',
   'trading-futures': 'Futures & Perps',
+
+  // Stocks
+  'stocks': 'Stocks',
 
   // Prediction Markets
   'trading-polymarket': 'Prediction Markets',
@@ -239,6 +245,7 @@ const SKILL_CATEGORIES: Record<string, SkillCategory> = {
   'divergence': 'Portfolio & Risk',
   'edge': 'Portfolio & Risk',
   'dca': 'Portfolio & Risk',
+  'challenge': 'Portfolio & Risk',
 
   // Data & Feeds
   'feeds': 'Data & Feeds',
@@ -347,6 +354,8 @@ const COMMAND_ALIASES: Record<string, string> = {
   '/evm': '/trading-evm',
   '/kalshi': '/trading-kalshi',
   '/manifold': '/trading-manifold',
+  '/stock': '/stocks',
+  '/alpaca': '/stocks',
   '/security': '/token-security',
   '/audit': '/token-security',
   '/config': '/setup',
@@ -391,6 +400,16 @@ const ENV_VAR_DOCS: Record<string, { description: string; example: string; url?:
     description: 'Polymarket CLOB API key',
     example: 'export POLY_API_KEY="your-key"',
     url: 'https://docs.polymarket.com',
+  },
+  ALPACA_API_KEY: {
+    description: 'Alpaca API key ID for US stocks & ETFs (paper keys by default)',
+    example: 'export ALPACA_API_KEY="PK..."',
+    url: 'https://app.alpaca.markets',
+  },
+  ALPACA_API_SECRET: {
+    description: 'Alpaca API secret key (pairs with ALPACA_API_KEY)',
+    example: 'export ALPACA_API_SECRET="your-secret"',
+    url: 'https://app.alpaca.markets',
   },
   POLY_API_SECRET: {
     description: 'Polymarket CLOB API secret',
@@ -748,7 +767,7 @@ function handleSkillOverview(): string {
 
   // Category display order
   const categoryOrder: SkillCategory[] = [
-    'Futures & Perps', 'DeFi & DEX', 'Solana DeFi', 'Prediction Markets',
+    'Futures & Perps', 'Stocks', 'DeFi & DEX', 'Solana DeFi', 'Prediction Markets',
     'AI & Strategy', 'Portfolio & Risk', 'Data & Feeds', 'Security',
     'Infrastructure', 'Social & Identity', 'Utilities',
   ];
