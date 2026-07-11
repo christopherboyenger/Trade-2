@@ -51,6 +51,7 @@ export interface GatewayServer {
   setWhaleRouter(router: Router | null): void;
   setRiskRouter(router: Router | null): void;
   setChallengeRouter(router: Router | null): void;
+  setAdminRouter(router: Router | null): void;
   setRoutingRouter(router: Router | null): void;
   setFeedsRouter(router: Router | null): void;
   setMonitoringRouter(router: Router | null): void;
@@ -2403,6 +2404,13 @@ export function createServer(
     .badge.open { background: rgba(29, 155, 240, 0.2); color: #1d9bf0; }
     .loading { text-align: center; padding: 60px; color: #71767b; }
     .error { text-align: center; padding: 60px; color: #f91880; }
+    .admin-bar { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+    .admin-bar input { background: #0f1419; border: 1px solid #2f3336; color: #e7e9ea; padding: 10px 14px; border-radius: 8px; min-width: 280px; }
+    .admin-note { color: #71767b; font-size: 13px; font-weight: 400; }
+    .handicap-input { background: #0f1419; border: 1px solid #2f3336; color: #e7e9ea; padding: 8px 10px; border-radius: 8px; width: 110px; }
+    .chart-card .refresh { background: #1d9bf0; color: white; border: none; padding: 8px 16px; border-radius: 16px; cursor: pointer; font-weight: 600; }
+    .chart-card .refresh:hover { background: #1a8cd8; }
+    .chart-card .refresh:disabled { opacity: 0.6; cursor: default; }
     @media (max-width: 900px) { .charts-grid { grid-template-columns: 1fr; } }
   </style>
 </head>
@@ -2413,6 +2421,16 @@ export function createServer(
   </div>
   <div class="container">
     <div id="content" class="loading">Loading...</div>
+
+    <div class="chart-card" style="margin-top: 30px;">
+      <h3>User Handicaps <span class="admin-note">· admin — manual entry</span></h3>
+      <div class="admin-bar">
+        <input type="password" id="adminToken" placeholder="Admin token (CLODDS_TOKEN; leave blank if unset)" autocomplete="off">
+        <button class="refresh" onclick="loadUsers()">Load users</button>
+        <span class="admin-note">Enter a handicap from -100 to 100 for any user, or leave blank to clear it. Saved to the user's profile.</span>
+      </div>
+      <div id="adminUsers" class="loading">Loading users...</div>
+    </div>
   </div>
 
   <script>
@@ -2569,7 +2587,120 @@ export function createServer(
       });
     }
 
+    // ── Admin: manual user handicap entry ──
+    const adminTokenInput = document.getElementById('adminToken');
+    adminTokenInput.value = localStorage.getItem('clodds_admin_token') || '';
+
+    function adminHeaders() {
+      const token = adminTokenInput.value.trim();
+      localStorage.setItem('clodds_admin_token', token);
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+      return headers;
+    }
+
+    async function loadUsers() {
+      const el = document.getElementById('adminUsers');
+      el.className = 'loading';
+      el.textContent = 'Loading users...';
+      try {
+        const res = await fetch('/api/admin/users', { headers: adminHeaders() });
+        if (res.status === 401) throw new Error('Unauthorized — enter the admin token (CLODDS_TOKEN) above and reload');
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const body = await res.json();
+        renderUsers(body.data || []);
+      } catch (err) {
+        el.className = 'error';
+        el.textContent = 'Failed to load users: ' + err.message;
+      }
+    }
+
+    function renderUsers(users) {
+      const el = document.getElementById('adminUsers');
+      el.className = '';
+      el.innerHTML = '';
+      if (!users.length) {
+        el.className = 'loading';
+        el.textContent = 'No users yet — users appear here after they message the bot on any channel.';
+        return;
+      }
+      const table = document.createElement('table');
+      table.className = 'trades-table';
+      const thead = document.createElement('thead');
+      const headRow = document.createElement('tr');
+      for (const label of ['User', 'Platform', 'ID', 'Last Active', 'Handicap', '']) {
+        const th = document.createElement('th');
+        th.textContent = label;
+        headRow.appendChild(th);
+      }
+      thead.appendChild(headRow);
+      table.appendChild(thead);
+      const tbody = document.createElement('tbody');
+      for (const u of users) {
+        const tr = document.createElement('tr');
+        const cells = [
+          u.username || '—',
+          u.platform,
+          u.id,
+          u.lastActiveAt ? new Date(u.lastActiveAt).toLocaleString() : '—',
+        ];
+        for (const text of cells) {
+          const td = document.createElement('td');
+          td.textContent = text;
+          tr.appendChild(td);
+        }
+        const inputTd = document.createElement('td');
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.className = 'handicap-input';
+        input.step = '0.1';
+        input.min = '-100';
+        input.max = '100';
+        input.placeholder = 'none';
+        if (u.handicap != null) input.value = String(u.handicap);
+        inputTd.appendChild(input);
+        tr.appendChild(inputTd);
+        const btnTd = document.createElement('td');
+        const btn = document.createElement('button');
+        btn.className = 'refresh';
+        btn.textContent = 'Save';
+        btn.addEventListener('click', () => saveHandicap(u.id, input, btn));
+        btnTd.appendChild(btn);
+        tr.appendChild(btnTd);
+        tbody.appendChild(tr);
+      }
+      table.appendChild(tbody);
+      el.appendChild(table);
+    }
+
+    async function saveHandicap(userId, input, btn) {
+      const raw = input.value.trim();
+      const handicap = raw === '' ? null : Number(raw);
+      if (handicap != null && (!isFinite(handicap) || handicap < -100 || handicap > 100)) {
+        alert('Handicap must be a number between -100 and 100, or blank to clear it.');
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = 'Saving...';
+      try {
+        const res = await fetch('/api/admin/users/' + encodeURIComponent(userId) + '/handicap', {
+          method: 'PUT',
+          headers: adminHeaders(),
+          body: JSON.stringify({ handicap }),
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok || body.ok === false) throw new Error(body.error || ('HTTP ' + res.status));
+        btn.textContent = 'Saved ✓';
+        setTimeout(() => { btn.textContent = 'Save'; btn.disabled = false; }, 1200);
+      } catch (err) {
+        btn.textContent = 'Save';
+        btn.disabled = false;
+        alert('Failed to save handicap: ' + err.message);
+      }
+    }
+
     loadData();
+    loadUsers();
   </script>
 </body>
 </html>`);
@@ -2770,6 +2901,11 @@ export function createServer(
     setChallengeRouter(router: Router | null): void {
       if (router) {
         app.use('/api/challenge', requireAuth, router);
+      }
+    },
+    setAdminRouter(router: Router | null): void {
+      if (router) {
+        app.use('/api/admin', requireAuth, router);
       }
     },
     setRoutingRouter(router: Router | null): void {

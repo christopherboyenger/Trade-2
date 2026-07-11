@@ -223,6 +223,11 @@ export interface UserSettings {
   maxTotalExposure?: number;
   /** Stop-loss trigger percentage (e.g. 0.2 for 20%) */
   stopLossPct?: number;
+  /**
+   * Manually assigned handicap for this user, entered by an admin from the
+   * dashboard (/dashboard → User Handicaps). Range -100..100; unset = none.
+   */
+  handicap?: number;
 }
 
 // =============================================================================
