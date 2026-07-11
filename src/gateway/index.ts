@@ -862,6 +862,13 @@ export async function createGateway(config: Config): Promise<AppGateway> {
     logger.info('Alerts API wired (service injected when available)');
   }
 
+  // Wire Admin API (user administration — manual handicap entry from /dashboard)
+  {
+    const { createAdminRouter } = await import('./admin-routes.js');
+    httpGateway.setAdminRouter(createAdminRouter({ db }));
+    logger.info('Admin API wired');
+  }
+
   // Wire Execution Queue API (requires Redis / executionProducer)
   if (executionProducer) {
     const { createQueueRouter } = await import('./queue-routes.js');
