@@ -532,7 +532,8 @@ Output the expanded document.`;
             const puppeteer = await getPuppeteer();
             const browser = await puppeteer.launch({ headless: true });
             const page = await browser.newPage();
-            await page.setContent(fullHtml, { waitUntil: 'networkidle0' });
+            // puppeteer 24 dropped networkidle0 for setContent (content is local)
+            await page.setContent(fullHtml, { waitUntil: 'load' });
             const pdfBuffer = await page.pdf({
               format: 'A4',
               margin: { top: '20mm', right: '20mm', bottom: '20mm', left: '20mm' },
