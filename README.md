@@ -270,6 +270,8 @@ Polymarket @ 52c vs Kalshi @ 55c → 3c spread
 
 ## Advanced Trading
 
+**Chart Analysis (`/chart`):** AI analyst pipeline on live candles — reads price action/volume/structure/trend, finds support, resistance, liquidity pools and supply/demand zones, builds an entry/stop/target plan, then risk-reviews it (position size, max loss, exposure, confidence) and only approves high-probability setups
+
 **Whale Tracking:** Multi-chain monitoring (Solana, ETH, Polygon, ARB, Base, OP) with configurable thresholds
 
 **Copy Trading:** Mirror successful wallets with sizing controls and SL/TP
